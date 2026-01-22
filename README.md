@@ -1,5 +1,9 @@
 # 🗞️ AnimeBootNews — Seu Bot de Notícias de Anime
 
+<p align="center">
+  <img alt="Gundam News Bot" src="./icon.png" width="300">
+</p>
+
 <div align="center">
 
 [![Discord Bot](https://img.shields.io/badge/Discord-Bot-5865F2?logo=discord&logoColor=white&style=flat-square)](https://discord.com/developers/applications)
