@@ -1,0 +1,54 @@
+{
+    "bot": {
+        "name": "Sistema AnimeBootNews",
+        "description": "Bot de Notícias de Anime"
+    },
+    "commands": {
+        "help": {
+            "title": "📖 Manual de Operações - AnimeBootNews",
+            "config": "🛠️ Configuração (Admin)",
+            "dashboard": "**/dashboard** - Painel visual para configurar filtros",
+            "forcecheck": "**/forcecheck** - Força uma varredura imediata",
+            "info": "📊 Informações",
+            "status": "**/status** - Estatísticas de uptime e performance",
+            "feeds": "**/feeds** - Lista fontes monitoradas",
+            "about": "**/about** - Sobre o bot",
+            "ping": "**/ping** - Latência"
+        },
+        "ping": {
+            "response": "🏓 **Pong!** Latência: `{latency}ms`"
+        },
+        "about": {
+            "description": "Bot especializado em monitoramento de notícias de Anime.\nColeta informações de RSS, YouTube e sites oficiais, traduz para PT-BR e publica em canais configurados.",
+            "developer": "👨‍💻 Desenvolvedor",
+            "version": "📦 Versão",
+            "stack": "🛠️ Stack",
+            "footer": "Notícias de Anime em tempo real."
+        },
+        "feeds": {
+            "title": "📡 Feeds Monitorados ({total})",
+            "more": "\n... e mais {count} feeds."
+        },
+        "dashboard": {
+            "title": "🛰️ **PAINEL ANIMEBOOTNEWS**\nConfigure os filtros de notícias abaixo:",
+            "created": "✅ Dashboard criado! Canal configurado: <#{channel}>",
+            "error": "❌ Falha ao abrir o painel."
+        },
+        "forcecheck": {
+            "starting": "🔎 Iniciando varredura forçada...",
+            "success": "✅ Varredura forçada concluída!",
+            "fail": "❌ Falha ao executar varredura.",
+            "error_admin": "❌ Você precisa ter permissão de **Administrador** para usar este comando."
+        }
+    },
+    "scanner": {
+        "starting": "🔎 Iniciando varredura de inteligência... (gatilho={trigger})",
+        "completed": "✅ Varredura concluída. (enviadas={sent}, cache={hits}/{total}, gatilho={trigger})",
+        "no_guilds": "⚠️ Nenhuma guilda configurada com 'channel_id'. Use /dashboard para configurar.",
+        "new_news": "📰 Nova Inteligência"
+    },
+    "embed": {
+        "author": "📰 ANIME NEWS",
+        "source": "Fonte: {source}"
+    }
+}

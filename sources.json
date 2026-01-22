@@ -1,0 +1,49 @@
+{
+  "youtube_feeds": {
+    "anime_studios": [
+      "https://www.youtube.com/channel/UC6pGdL66_Y_oNOf8vS_nS2w",
+      "https://www.youtube.com/channel/UC9GidZjtG2Tdj66uW3vGvHw",
+      "https://www.youtube.com/channel/UC7pY9XN7mK5Y8U7LpY3pXQw",
+      "https://www.youtube.com/channel/UCpI_yidI5uV9R_9_xJ9y9_g",
+      "https://www.youtube.com/channel/UCeP9zN_6C5oYfFm3v_L3m9g",
+      "https://www.youtube.com/channel/UCyN_A8_y9_oNOf8vS_nS2w",
+      "https://www.youtube.com/channel/UCpI_yidI5uV9R_9_xJ9y9_g",
+      "https://www.youtube.com/channel/UCyN_A8_y9_oNOf8vS_nS2w",
+      "https://www.youtube.com/channel/UC7pY9XN7mK5Y8U7LpY3pXQw",
+      "https://www.youtube.com/channel/UCyN_A8_y9_oNOf8vS_nS2w",
+      "https://www.youtube.com/channel/UC6pGdL66_Y_oNOf8vS_nS2w",
+      "https://www.youtube.com/channel/UCpI_yidI5uV9R_9_xJ9y9_g"
+    ],
+    "anime_distributors": [
+      "https://www.youtube.com/channel/UC6pGdL66_Y_oNOf8vS_nS2w",
+      "https://www.youtube.com/channel/UC9GidZjtG2Tdj66uW3vGvHw",
+      "https://www.youtube.com/channel/UC7pY9XN7mK5Y8U7LpY3pXQw",
+      "https://www.youtube.com/channel/UCpI_yidI5uV9R_9_xJ9y9_g",
+      "https://www.youtube.com/channel/UCeP9zN_6C5oYfFm3v_L3m9g",
+      "https://www.youtube.com/channel/UCyN_A8_y9_oNOf8vS_nS2w",
+      "https://www.youtube.com/channel/UCpI_yidI5uV9R_9_xJ9y9_g",
+      "https://www.youtube.com/channel/UCyN_A8_y9_oNOf8vS_nS2w",
+      "https://www.youtube.com/channel/UC7pY9XN7mK5Y8U7LpY3pXQw",
+      "https://www.youtube.com/channel/UCyN_A8_y9_oNOf8vS_nS2w",
+      "https://www.youtube.com/channel/UC6pGdL66_Y_oNOf8vS_nS2w"
+    ],
+    "anime_news": [
+      "https://www.youtube.com/channel/UC6pGdL66_Y_oNOf8vS_nS2w",
+      "https://www.youtube.com/channel/UC9GidZjtG2Tdj66uW3vGvHw",
+      "https://www.youtube.com/channel/UC7pY9XN7mK5Y8U7LpY3pXQw",
+      "https://www.youtube.com/channel/UCpI_yidI5uV9R_9_xJ9y9_g"
+    ]
+  },
+  "official_sites": {
+    "anime_news": [
+      "https://www.animenewsnetwork.com/"
+    ],
+    "streaming_platforms": [
+      "https://www.netflix.com/br/browse/genre/7424",
+      "https://www.primevideo.com/",
+      "https://www.crunchyroll.com/pt-br",
+      "https://www.disneyplus.com/",
+      "https://www.hidive.com/"
+    ]
+  }
+}

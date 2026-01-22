@@ -1,0 +1,54 @@
+{
+    "bot": {
+        "name": "AnimeBootNews System",
+        "description": "Anime News Bot"
+    },
+    "commands": {
+        "help": {
+            "title": "📖 Operations Manual - AnimeBootNews",
+            "config": "🛠️ Configuration (Admin)",
+            "dashboard": "**/dashboard** - Visual panel to configure filters",
+            "forcecheck": "**/forcecheck** - Force immediate scan",
+            "info": "📊 Information",
+            "status": "**/status** - Uptime and performance stats",
+            "feeds": "**/feeds** - List monitored sources",
+            "about": "**/about** - About the bot",
+            "ping": "**/ping** - Latency"
+        },
+        "ping": {
+            "response": "🏓 **Pong!** Latency: `{latency}ms`"
+        },
+        "about": {
+            "description": "Bot specialized in monitoring Anime news.\nCollects info from RSS, YouTube, and official sites, translates to your language, and posts to configured channels.",
+            "developer": "👨‍💻 Developer",
+            "version": "📦 Version",
+            "stack": "🛠️ Stack",
+            "footer": "Real-time Anime News."
+        },
+        "feeds": {
+            "title": "📡 Monitored Feeds ({total})",
+            "more": "\n... and {count} more feeds."
+        },
+        "dashboard": {
+            "title": "🛰️ **ANIMEBOOTNEWS DASHBOARD**\nConfigure news filters below:",
+            "created": "✅ Dashboard created! Channel configured: <#{channel}>",
+            "error": "❌ Failed to open dashboard."
+        },
+        "forcecheck": {
+            "starting": "🔎 Starting forced scan...",
+            "success": "✅ Forced scan completed!",
+            "fail": "❌ Failed to execute scan.",
+            "error_admin": "❌ You need **Administrator** permission to use this command."
+        }
+    },
+    "scanner": {
+        "starting": "🔎 Starting intelligence scan... (trigger={trigger})",
+        "completed": "✅ Scan completed. (sent={sent}, cache={hits}/{total}, trigger={trigger})",
+        "no_guilds": "⚠️ No guilds configured with 'channel_id'. Use /dashboard to configure.",
+        "new_news": "📰 New Intelligence"
+    },
+    "embed": {
+        "author": "📰 ANIME NEWS",
+        "source": "Source: {source}"
+    }
+}

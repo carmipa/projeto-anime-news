@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  anime-bot:
+    build: .
+    container_name: anime-news-bot
+    restart: unless-stopped
+
+    # Variáveis de ambiente (do arquivo .env)
+    env_file:
+      - .env
+
+    # Volumes para persistir dados
+    volumes:
+      # Arquivos de configuração e histórico
+      - ./config.json:/app/config.json
+      - ./history.json:/app/history.json
+      - ./state.json:/app/state.json
+      - ./sources.json:/app/sources.json
+
+      # Logs persistentes (opcional)
+      - ./logs:/app/logs
+
+    # Configuração de logs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # Política de restart
+    # unless-stopped: reinicia sempre, exceto se parado manualmente
+
+    # Healthcheck (herda do Dockerfile)
+
+    # Labels para organização
+    labels:
+      com.anime-bot.description: "AnimeBootNews System"
+      com.anime-bot.version: "3.0"

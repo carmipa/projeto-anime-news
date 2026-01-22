@@ -1,0 +1,54 @@
+{
+    "bot": {
+        "name": "Sistema AnimeBootNews",
+        "description": "Bot de Noticias de Anime"
+    },
+    "commands": {
+        "help": {
+            "title": "📖 Manual de Operaciones - AnimeBootNews",
+            "config": "🛠️ Configuración (Admin)",
+            "dashboard": "**/dashboard** - Panel visual para configurar filtros",
+            "forcecheck": "**/forcecheck** - Fuerza un escaneo inmediato",
+            "info": "📊 Información",
+            "status": "**/status** - Estadísticas de uptime y rendimiento",
+            "feeds": "**/feeds** - Lista fuentes monitoreadas",
+            "about": "**/about** - Sobre el bot",
+            "ping": "**/ping** - Latencia"
+        },
+        "ping": {
+            "response": "🏓 **Pong!** Latencia: `{latency}ms`"
+        },
+        "about": {
+            "description": "Bot especializado en monitoreo de noticias de Anime.\nRecopila información de RSS, YouTube y sitios oficiales, traduce a su idioma y publica en canales configurados.",
+            "developer": "👨‍💻 Desarrollador",
+            "version": "📦 Versión",
+            "stack": "🛠️ Stack",
+            "footer": "Noticias de Anime en tiempo real."
+        },
+        "feeds": {
+            "title": "📡 Feeds Monitoreados ({total})",
+            "more": "\n... y más {count} feeds."
+        },
+        "dashboard": {
+            "title": "🛰️ **PANEL ANIMEBOOTNEWS**\nConfigure los filtros de noticias abajo:",
+            "created": "✅ Dashboard creado! Canal configurado: <#{channel}>",
+            "error": "❌ Fallo al abrir el panel."
+        },
+        "forcecheck": {
+            "starting": "🔎 Iniciando escaneo forzado...",
+            "success": "✅ Escaneo forzado completado!",
+            "fail": "❌ Fallo al ejecutar escaneo.",
+            "error_admin": "❌ Necesitas permiso de **Administrador** para usar este comando."
+        }
+    },
+    "scanner": {
+        "starting": "🔎 Iniciando escaneo de inteligencia... (trigger={trigger})",
+        "completed": "✅ Escaneo completado. (enviadas={sent}, cache={hits}/{total}, trigger={trigger})",
+        "no_guilds": "⚠️ Ninguna guild configurada con 'channel_id'. Use /dashboard para configurar.",
+        "new_news": "📰 Nueva Inteligencia"
+    },
+    "embed": {
+        "author": "📰 ANIME NEWS",
+        "source": "Fuente: {source}"
+    }
+}
