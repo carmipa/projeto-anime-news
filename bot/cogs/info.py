@@ -11,7 +11,9 @@ from core.scanner import load_sources
 from utils.translator import t
 from utils.storage import p, load_json_safe, save_json_safe
 
-log = logging.getLogger("AnimeBotIntel")
+from utils.logger import log
+
+# log = logging.getLogger("AnimeBotIntel")
 
 
 class InfoCog(commands.Cog):

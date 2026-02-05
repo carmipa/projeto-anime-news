@@ -3,13 +3,13 @@ Filters module - News filtering and categorization logic.
 """
 from typing import Dict, List, Any
 from utils.html import clean_html
+from utils.logger import log  # GRC Logger
 import re
 
 # =========================================================
 # FILTROS / CATEGORIAS
 # =========================================================
 
-# Terms to EXCLUDE (Video Games, Toys, Clothing)
 # Terms to EXCLUDE (Clothing, Generic noise)
 BLACKLIST = [
     "t-shirt", "apparel", "hoodie", "jacket", "clothing", "fashion",
@@ -57,70 +57,63 @@ FILTER_OPTIONS = {
 # HELPER FUNCTIONS
 # =========================================================
 
-def _contains_any(text: str, keywords: List[str]) -> bool:
+def _contains_any(text: str, keywords: List[str]) -> str:
     """
-    Verifica se alguma keyword está presente no texto usando Regex.
-    
-    Usa word boundaries (\b) para evitar matches parciais.
-    Suporta plural opcional ('s?').
-    
-    Args:
-        text: Texto a verificar (já em lowercase)
-        keywords: Lista de palavras-chave (em lowercase)
-    
-    Returns:
-        True se pelo menos uma keyword foi encontrada
+    Verifica se alguma keyword está presente no texto.
+    Retorna a keyword encontrada ou String vazia.
     """
     if not keywords:
-        return False
+        return ""
 
-    # Escapa keywords para segurança no regex
-    # Monta padrão: (?<!:)\b(?:kw1|kw2|...|kwn)s?\b
     escaped_kws = [re.escape(k) for k in keywords]
-    pattern_str = r'(?<!:)\b(?:' + '|'.join(escaped_kws) + r')s?\b'
+    pattern_str = r'(?<!:)\b(' + '|'.join(escaped_kws) + r')s?\b'
     
-    return bool(re.search(pattern_str, text))
+    match = re.search(pattern_str, text, re.IGNORECASE)
+    return match.group(1) if match else ""
 
 
 def match_intel(guild_id: str, title: str, summary: str, config: Dict[str, Any]) -> bool:
     """
     Decide se notícia deve ir para a guild.
     
-    Lógica:
-      1. Junta title + summary
-      2. Bloqueia se tiver termo da BLACKLIST (Games, Merch, etc)
-      3. Se filtro 'todos' ativo -> Aprova
-      4. Se categorias específicas ativas -> Verifica keywords
-    
-    Args:
-        guild_id: ID da guild
-        title: Título da notícia
-        summary: Resumo da notícia
-        config: Configuração carregada
-    
-    Returns:
-        True se notícia deve ser postada
+    Returns: True se aprovado.
     """
     g = config.get(str(guild_id), {})
     filters = g.get("filters", [])
 
     if not isinstance(filters, list) or not filters:
+        # log.debug(f"Guild {guild_id} sem filtros configurados.")
         return False
 
     content = f"{clean_html(title)} {clean_html(summary)}".lower()
 
-    # 1. Bloqueia Blacklist (Games, Toys, Merch)
-    if _contains_any(content, BLACKLIST):
+    # 1. Bloqueia Blacklist
+    blocked_word = _contains_any(content, BLACKLIST)
+    if blocked_word:
+        log.warning(f"🚫 [BLOCKED] Guild: {guild_id} | Filtro: BLACKLIST | Termo: '{blocked_word}' | Título: {title[:50]}...")
         return False
 
-    # 2. "todos" libera tudo (que não seja blacklist)
+    # 2. "todos" libera tudo
     if "todos" in filters:
+        log.info(f"✅ [ALLOWED] Guild: {guild_id} | Filtro: TODOS | Título: {title[:50]}...")
         return True
 
     # 3. Verifica categorias específicas
     for f in filters:
         kws = CAT_MAP.get(f, [])
-        if kws and _contains_any(content, kws):
+        matched_kw = _contains_any(content, kws)
+        
+        if matched_kw:
+            # Lógica Especial: GAMES ou FILMES apenas se tiver relação com ANIME
+            if f in ["games", "filmes"]:
+                anime_kws = CAT_MAP.get("anime", [])
+                if not _contains_any(content, anime_kws):
+                     log.debug(f"⚠️ [FILTER-{f.upper()}] Ignorado pois não possui termo de anime. Título: {title[:30]}...")
+                     continue
+            
+            log.info(f"✅ [ALLOWED] Guild: {guild_id} | Filtro: {f.upper()} | Termo: '{matched_kw}' | Título: {title[:50]}...")
             return True
 
+    # Se chegou aqui, não passou em nenhum filtro
+    log.debug(f"❌ [IGNORED] Guild: {guild_id} | Não houve match em filtros ativos ({filters}) | Título: {title[:50]}...")
     return False

@@ -6,7 +6,9 @@ from discord.ext import commands
 from discord import app_commands
 import logging
 
-log = logging.getLogger("AnimeBootNews")
+from utils.logger import log
+
+# log = logging.getLogger("AnimeBootNews")
 
 
 class AdminCog(commands.Cog):

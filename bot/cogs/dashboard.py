@@ -9,7 +9,9 @@ import logging
 from bot.views.filter_dashboard import FilterDashboard
 from utils.storage import p, load_json_safe, save_json_safe
 
-log = logging.getLogger("AnimeBootNews")
+from utils.logger import log
+
+# log = logging.getLogger("AnimeBootNews")
 
 
 class DashboardCog(commands.Cog):

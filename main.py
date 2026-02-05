@@ -14,12 +14,11 @@ from bot.views.filter_dashboard import FilterDashboard
 from core.scanner import start_scheduler, run_scan_once
 from web.server import start_web_server  # Novo web server
 
-# Configuração de Logs
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - [%(levelname)s] - %(message)s"
-)
-log = logging.getLogger("AnimeBootNews")
+from utils.logger import log  # GRC Logger
+
+# Configuração de Logs - REMOVIDO (Centralizado em utils.logger)
+# logging.basicConfig(...) 
+# log = logging.getLogger("AnimeBootNews")
 
 
 # =========================================================

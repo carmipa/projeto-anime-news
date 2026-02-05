@@ -23,7 +23,9 @@ from core.stats import stats
 from core.filters import match_intel
 from bot.views.player import WatchView
 
-log = logging.getLogger("AnimeBotIntel")
+from utils.logger import log  # GRC Logger
+
+# log = logging.getLogger("AnimeBotIntel") <-- Removed local logger
 
 def load_sources() -> List[str]:
     """Carrega todas as URLs de sources.json em uma lista plana."""
@@ -64,11 +66,12 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
     """
     Executa uma rodada de verificação de feeds.
     """
+    # 🔎 Scan Start
     log.info(f"🔎 Iniciando varredura... (gatilho={trigger})")
     
     urls = load_sources()
     if not urls:
-        log.warning("⚠️ Nenhuma fonte encontrada em sources.json")
+        log.warning("⚠️ [CONFIG] Nenhuma fonte encontrada em sources.json")
         return
 
     history_list, history_set = _load_history()
@@ -93,7 +96,7 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                         continue
                     
                     if resp.status != 200:
-                        log.warning(f"Status {resp.status} para {link_url}")
+                        log.warning(f"⚠️ [HTTP] Status {resp.status} para {link_url}")
                         continue
                         
                     content = await resp.read()
@@ -104,7 +107,7 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                 # 2. Parse Feed
                 feed = feedparser.parse(content)
                 if feed.bozo:
-                    log.debug(f"Bozo exception parsing {link_url}: {feed.bozo_exception}")
+                    log.debug(f"🤡 [PARSER] Bozo exception parsing {link_url}: {feed.bozo_exception}")
 
                 if not feed.entries:
                     continue
@@ -137,7 +140,7 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                             
                         channel = bot.get_channel(int(channel_id))
                         if not channel:
-                            # log.debug(f"Canal {channel_id} não encontrado/inacessível.")
+                            log.error(f"❌ [CONFIG] Canal {channel_id} não encontrado ou sem permissão de ver!")
                             continue
 
                         # Determine Language
@@ -149,6 +152,7 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
 
                         # 5. Send to Discord
                         try:
+                            log.info(f"📤 [SENDING] Enviando para canal {channel.name} ({channel_id})...")
                             if is_media:
                                 msg_content = f"**{t_translated}**\n{link}"
                                 view = WatchView(link)
@@ -185,7 +189,7 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                             posted_anywhere = True
                             
                         except Exception as e:
-                            log.error(f"Falha ao enviar no canal {channel_id}: {e}")
+                            log.error(f"❌ [DISCORD] Falha ao enviar no canal {channel_id}: {e}")
                     
                     # If sent to at least one guild, verify counting
                     if posted_anywhere:
@@ -196,12 +200,12 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                         history_list.append(link)
 
             except Exception as e:
-                log.error(f"Erro processando feed {link_url}: {e}")
+                log.error(f"🔥 [SCANNER] Erro processando feed {link_url}: {e}")
 
     save_history(history_list)
     cleaned = cleanup_state(http_state)
     if cleaned > 0:
-        log.info(f"🧹 Limpeza de estado: {cleaned} entradas antigas removidas.")
+        log.info(f"🧹 [CLEANUP] Limpeza de estado: {cleaned} entradas antigas removidas.")
         
     save_http_state(http_state)
     
@@ -210,7 +214,7 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
     stats.cache_hits_total += cache_hits
     stats.last_scan_time = datetime.now()
     
-    log.info(f"✅ Varredura concluída. (enviadas={sent_count}, cache_hits={cache_hits}/{len(urls)}, trigger={trigger})")
+    log.info(f"✅ [FINISHED] Varredura concluída. (Enviadas: {sent_count} | Cache Hits: {cache_hits}/{len(urls)} | Trigger: {trigger})")
     _log_next_run()
 
 

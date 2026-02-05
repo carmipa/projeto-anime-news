@@ -8,7 +8,9 @@ import logging
 from core.filters import FILTER_OPTIONS
 from utils.storage import p, load_json_safe, save_json_safe
 
-log = logging.getLogger("AnimeBot")
+from utils.logger import log
+
+# log = logging.getLogger("AnimeBot")
 
 
 class FilterDashboard(discord.ui.View):
