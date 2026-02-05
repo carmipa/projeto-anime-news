@@ -69,9 +69,12 @@ async def main():
 
     @bot.event
     async def on_ready():
-        log.info(f"✅ Bot conectado como: {bot.user}")
-
-        # 0. Iniciar Web Server (Fase 10)
+        log.info(f"✅ Bot conectado como: {bot.user} (ID: {bot.user.id})")
+        
+        # Iniciar Web Server
+        await start_web_server(port=8080)
+        
+        # Registrar Views Persistentesr (Fase 10)
         await start_web_server(port=8080)
 
         # 1. Carregar Views Persistentes
