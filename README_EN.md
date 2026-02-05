@@ -24,7 +24,7 @@
 - [🧱 Architecture](#-architecture)
 - [🚀 Installation](#-installation)
 - [⚙️ Configuration](#️-configuration)
-- [🧰 Commands](#-commands)
+- [🧰 Commands](COMMANDS.md)
 - [🎛️ Dashboard](#️-dashboard)
 - [🧠 Filter System](#-filter-system)
 - [🖥️ Deploy](#️-deploy)

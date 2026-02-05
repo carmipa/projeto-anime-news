@@ -46,6 +46,7 @@ Filtragem automática de Games, Merch e Roupas • Dashboard Interativo • Post
 ## 🎯 Casos de Uso
 
 ### 📺 Servidor de Anime
+
 ```
 ✅ Receber notícias de novos episódios
 ✅ Atualizações de produção de estúdios
@@ -54,6 +55,7 @@ Filtragem automática de Games, Merch e Roupas • Dashboard Interativo • Post
 ```
 
 ### 🎵 Comunidade de Música
+
 ```
 ✅ Novos OSTs e Openings
 ✅ Composições de estúdios de áudio
@@ -62,6 +64,7 @@ Filtragem automática de Games, Merch e Roupas • Dashboard Interativo • Post
 ```
 
 ### 🌍 Servidor Internacional
+
 ```
 ✅ Suporte a múltiplos idiomas
 ✅ Configuração por canal independente
@@ -200,6 +203,7 @@ SALVA ESTADO
 ### 💾 Estrutura de Dados
 
 #### `sources.json` - Feeds Configurados
+
 ```json
 {
   "youtube_feeds": {
@@ -221,6 +225,7 @@ SALVA ESTADO
 ```
 
 #### `config.json` - Configuração por Guild
+
 ```json
 {
   "417746665219424277": {
@@ -239,6 +244,7 @@ SALVA ESTADO
 ```
 
 #### `history.json` - Histórico de Notícias
+
 ```json
 [
   {
@@ -252,6 +258,7 @@ SALVA ESTADO
 ```
 
 #### `state.json` - Estado da Aplicação
+
 ```json
 {
   "last_run": "2026-01-22T15:30:45Z",
@@ -354,27 +361,33 @@ python main.py
 
 ## ⚙️ Configuração Detalhada
 
-### 📡 Adicionando Feeds RSS/Atom
+### 📡 Adicionando Feeds
+
+#### 1. Canais do YouTube (Recomendado para Estúdios)
+
+A maioria dos estúdios (MAPPA, Ufotable, KyoAni) não possui RSS no site. A melhor forma é monitorar o canal oficial do YouTube:
 
 Edite `sources.json`:
 
 ```json
-{
-  "rss_feeds": {
-    "anime_news": [
-      "https://example.com/feeds/anime.xml",
-      "https://example.com/feeds/news.atom"
-    ],
-    "music": [
-      "https://example.com/feeds/ost.xml"
-    ]
-  },
   "youtube_feeds": {
-    "studios": [
-      "https://www.youtube.com/feeds/videos.xml?channel_id=YOUR_CHANNEL_ID"
+    "anime_studios": [
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCWOA1ZGywLbqmigxE4Qlvuw", // Netflix Anime
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UC14QT5j2nQI8lKBCGtrrBQA"  // Aniplex
     ]
   }
-}
+```
+
+#### 2. Feeds RSS/Atom (Sites de Notícias)
+
+Para sites que possuem feeds nativos (ANN, Crunchyroll News):
+
+```json
+  "rss_feeds": {
+    "anime_news": [
+      "https://www.animenewsnetwork.com/news/rss.xml"
+    ]
+  }
 ```
 
 ### 🎯 Configurar por Guild (Servidor)
@@ -394,6 +407,7 @@ Edite `config.json`:
 ```
 
 **Como obter `guild_id` e `channel_id`?**
+
 1. Ative "Developer Mode" em Discord (User Settings → App Settings → Advanced → Developer Mode)
 2. Clique direito no servidor → "Copy Server ID"
 3. Clique direito no canal → "Copy Channel ID"
@@ -419,36 +433,21 @@ O bot detecta automaticamente qual servidor e canal usar através dos IDs em `co
 
 ---
 
-## 🧰 Comandos Disponíveis
+### 📃 Lista Completa de Comandos
 
-### Comandos Gerais
+Para uma lista detalhada de todos os comandos, permissões e exemplos de uso, consulte o guia oficial:
 
-| 🎮 Comando | 📝 Descrição | 🔐 Permissão | ⚡ Tipo |
-|----------|-----------|-----------|-------|
-| `/dashboard` | Abre o painel de controle | Qualquer um | Slash |
-| `/status` | Mostra estatísticas do bot | Qualquer um | Slash |
-| `/help` | Ajuda completa | Qualquer um | Slash |
-| `/setlang <idioma>` | Define idioma (pt_BR, en_US, es_ES, it_IT) | Admin | Slash |
+👉 **[COMMANDS.md](COMMANDS.md)**
 
-### Comandos Admin
+Resumo rápido:
 
-| 🎮 Comando | 📝 Descrição | 🔐 Permissão | ⚡ Tipo |
-|----------|-----------|-----------|-------|
-| `/forcecheck` | Força varredura imediata | Admin | Slash |
-| `/reload` | Recarrega configurações | Owner | Slash |
-| `/logs` | Mostra últimos logs | Owner | Slash |
-| `/clear_history` | Limpa histórico de notícias | Owner | Slash |
-
-### Comandos Legacy (Prefix)
-
-Se preferir usar prefix commands (ex: `!dashboard`):
-
-```
-!dashboard     - Abre dashboard
-!forcecheck    - Força varredura
-!status        - Status do bot
-!help          - Ajuda
-```
+- `/dashboard` - Painel de controle
+- `/status` - Estatísticas do bot
+- `/help` - Ajuda e links
+- `/feeds` - Lista fontes monitoradas
+- `/ping` - Teste de latência
+- `/setlang` - Muda o idioma (Admin)
+- `/forcecheck` - Força varredura (Admin)
 
 ---
 
@@ -474,6 +473,7 @@ O dashboard permite controlar o bot diretamente no Discord:
 ### 📊 Estatísticas do Dashboard
 
 O dashboard mostra em tempo real:
+
 - ✅ Total de notícias postadas
 - 🚫 Total de notícias bloqueadas
 - 🔄 Última varredura
@@ -510,18 +510,21 @@ Resultado: ✅ Aprovado ou ❌ Bloqueado
 ### 🚫 Termos Bloqueados Automaticamente
 
 #### 🎮 Games & Consoles
+
 ```
 gameplay, videogame, ps5, ps4, xbox, nintendo
 switch, steam, playstation, game review, gaming
 ```
 
 #### 🧸 Brinquedos & Merchandising
+
 ```
 gunpla, figure, statue, toy, model kit, collectible
 action figure, doll, diorama, merchandise, merch
 ```
 
 #### 👕 Vestuário
+
 ```
 t-shirt, shirt, apparel, clothing, fashion, dress
 hoodie, jacket, sneaker, shoes, wear, outfit
@@ -581,6 +584,7 @@ WHITELIST_KEYWORDS = [
 ### 📝 Estrutura de Tradução
 
 `translations/pt_BR.json`:
+
 ```json
 {
   "commands": {
@@ -644,61 +648,38 @@ curl http://localhost:8080/api/status
 
 ### 🚀 Deploy Rápido com Docker Compose
 
-#### Passo 1: Criar arquivo `.env`
+### 🐳 Deploy com Docker Compose (VPS/Produção)
 
-```bash
-# .env
+#### Passo 1: Configurar Variáveis (`.env`)
+
+Crie um arquivo `.env` na raiz do projeto (**não** use apenas variáveis de ambiente do sistema, o Docker Compose precisa ler do arquivo ou você deve passá-las explicitamente):
+
+```ini
 DISCORD_TOKEN=seu_token_aqui
 COMMAND_PREFIX=!
 LOOP_MINUTES=30
 ```
 
-#### Passo 2: Usar Docker Compose
+#### Passo 2: Ajustar Timezone (Opcional)
 
-```bash
-# Clonar repositório
-git clone https://github.com/carmipa/gundam-news-discord.git
-cd anime-news-bot
-
-# Iniciar com Docker Compose
-docker-compose up -d
-
-# Verificar logs
-docker-compose logs -f
-
-# Parar
-docker-compose down
-```
-
-### 📄 Exemplo `docker-compose.yml`
+Para garantir que os logs e postagens fiquem no horário correto (ex: Brasil), o `docker-compose.yml` já vem configurado para montar o `/etc/localtime`. Se precisar alterar, edite a variável `TZ`:
 
 ```yaml
-version: '3.8'
-
-services:
-  anime-news-bot:
-    build: .
-    container_name: anime-news-bot
-    restart: always
     environment:
-      DISCORD_TOKEN: ${DISCORD_TOKEN}
-      COMMAND_PREFIX: ${COMMAND_PREFIX:-!}
-      LOOP_MINUTES: ${LOOP_MINUTES:-30}
-    volumes:
-      - ./config.json:/app/config.json
-      - ./sources.json:/app/sources.json
-      - ./history.json:/app/history.json
-      - ./state.json:/app/state.json
-      - ./translations:/app/translations
-    ports:
-      - "8080:8080"
-    networks:
-      - anime-network
-
-networks:
-  anime-network:
-    driver: bridge
+      - TZ=America/Sao_Paulo
 ```
+
+#### Passo 3: Rodar
+
+```bash
+# Subir o container (com rebuild para garantir updates)
+docker-compose up -d --build
+
+# Ver logs
+docker-compose logs -f --tail=50
+```
+
+> **Nota:** Se tiver erros de permissão com arquivos `.json` (Is a directory), pare o container, remova as pastas criadas erradas e crie arquivos vazios: `echo "{}" > history.json`.
 
 ### 🐳 Build Manual do Docker
 
@@ -799,6 +780,7 @@ anime-news-bot/
 ### ❌ "Erro: DISCORD_TOKEN não definido"
 
 **Solução:**
+
 ```bash
 # Verifique se a variável está definida
 echo $DISCORD_TOKEN  # macOS/Linux
@@ -812,6 +794,7 @@ DISCORD_TOKEN=seu_token_aqui
 ### ❌ "Bot não entra no servidor"
 
 **Solução:**
+
 1. Verifique se o bot tem permissões corretas:
    - Send Messages ✅
    - Embed Links ✅
@@ -819,6 +802,7 @@ DISCORD_TOKEN=seu_token_aqui
    - Read Message History ✅
 
 2. Convite OAuth2:
+
    ```
    https://discord.com/api/oauth2/authorize?client_id=SEU_CLIENT_ID&permissions=8&scope=bot%20applications.commands
    ```
@@ -826,17 +810,21 @@ DISCORD_TOKEN=seu_token_aqui
 ### ❌ "Feeds não atualizam"
 
 **Solução:**
+
 1. Verifique `sources.json`:
+
    ```bash
    python -c "import json; json.load(open('sources.json'))"
    ```
 
 2. Force uma varredura:
+
    ```bash
    /forcecheck
    ```
 
 3. Veja os logs:
+
    ```bash
    docker logs anime-news-bot  # Se usar Docker
    # Ou verifique o terminal rodando o bot
@@ -845,6 +833,7 @@ DISCORD_TOKEN=seu_token_aqui
 ### ❌ "Erro ao traduzir notícias"
 
 **Solução:**
+
 1. Verifique conexão com internet
 2. Tente com idioma padrão (en_US)
 3. Restart o bot
@@ -852,6 +841,7 @@ DISCORD_TOKEN=seu_token_aqui
 ### ⚠️ "Muitas notícias filtradas"
 
 **Debug:**
+
 ```python
 # No terminal Python
 from core.filters import FilterEngine
@@ -863,6 +853,7 @@ print(result)  # {'approved': True, 'reason': 'OK'}
 ### 🐳 "Docker não inicia"
 
 **Solução:**
+
 ```bash
 # Verificar erro
 docker-compose logs
@@ -890,6 +881,7 @@ Contribuições são bem-vindas! Por favor:
 ### 🐛 Reportando Bugs
 
 Use [GitHub Issues](https://github.com/carmipa/gundam-news-discord/issues) com:
+
 - Descrição clara do problema
 - Passos para reproduzir
 - Screenshots (se aplicável)
@@ -898,6 +890,7 @@ Use [GitHub Issues](https://github.com/carmipa/gundam-news-discord/issues) com:
 ### 💡 Sugerindo Features
 
 Abra uma [Discussion](https://github.com/carmipa/gundam-news-discord/discussions) com:
+
 - Descrição da feature
 - Caso de uso
 - Exemplos de como seria usado
@@ -931,7 +924,7 @@ Abra uma [Discussion](https://github.com/carmipa/gundam-news-discord/discussions
 
 - 💬 **Discord**: [Servidor de Suporte]()
 - 🐛 **Issues**: [GitHub Issues](https://github.com/carmipa/gundam-news-discord/issues)
-- 📧 **Email**: contato@example.com
+- 📧 **Email**: <contato@example.com>
 - 📱 **Twitter**: [@AnimeBootNews](https://twitter.com)
 
 ---
