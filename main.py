@@ -6,15 +6,27 @@
 import logging
 import asyncio
 import discord
+import os
+from logging.handlers import RotatingFileHandler
 from discord.ext import commands
 
 from settings import TOKEN, COMMAND_PREFIX
+from utils.logger import log, setup_logger # Adjusted to reuse existing logger if possible, but implementing rotation manually here for robustness
+
+# Setup Advanced Logging with Rotation
+os.makedirs("logs", exist_ok=True)
+formatter = logging.Formatter("%(asctime)s - [%(levelname)s] - %(message)s")
+file_handler = RotatingFileHandler("logs/bot.log", maxBytes=5*1024*1024, backupCount=3, encoding="utf-8")
+file_handler.setFormatter(formatter)
+
+# Attach to the existing colorlog logger
+log.addHandler(file_handler)
+
 from utils.storage import p, load_json_safe
 from bot.views.filter_dashboard import FilterDashboard
 from core.scanner import start_scheduler, run_scan_once
 from web.server import start_web_server  # Novo web server
 
-from utils.logger import log  # GRC Logger
 
 # Configuração de Logs - REMOVIDO (Centralizado em utils.logger)
 # logging.basicConfig(...) 

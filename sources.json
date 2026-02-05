@@ -2,6 +2,10 @@
   "youtube_feeds": {
     "anime_studios": [
       "https://www.youtube.com/feeds/videos.xml?channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q",
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCmDLyFjSutfb1MK7F6cMVSA",
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCY5fcqgSrQItPAX_Z5Frmwg",
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCVc-JLY3Db6-O48y7TS4N7Q",
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCi40p5_erF7-XTE8e-qAbOA",
       "https://www.youtube.com/feeds/videos.xml?channel_id=UCb-ekPowbBlQhyt7ZXPiu5Q",
       "https://www.youtube.com/feeds/videos.xml?channel_id=UCWOA1ZGywLbqmigxE4Qlvuw",
       "https://www.youtube.com/feeds/videos.xml?channel_id=UCETrNUjuH4EoRdZNFx9EI-A",
@@ -34,10 +38,11 @@
   },
   "official_sites": {
     "anime_news": [
-      "https://www.animenewsnetwork.com/news/rss.xml"
+      "https://www.animenewsnetwork.com/news/rss.xml",
+      "https://myanimelist.net/rss/news.xml",
+      "https://www.siliconera.com/feed/",
+      "https://otakuusamagazine.com/feed/"
     ],
-    "streaming_platforms": [
-      "https://www.crunchyroll.com/newsrss?lang=pt_BR"
-    ]
+    "streaming_platforms": []
   }
 }

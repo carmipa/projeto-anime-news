@@ -50,6 +50,49 @@ class AdminCog(commands.Cog):
         
         log.exception("Erro no comando /forcecheck", exc_info=error)
 
+    @app_commands.command(name="set_canal", description="Define este canal atual para receber as notícias.")
+    @app_commands.checks.has_permissions(manage_channels=True)
+    async def set_canal(self, interaction: discord.Interaction):
+        """
+        Define o canal atual como destino das notícias para este servidor.
+        """
+        guild_id = str(interaction.guild_id)
+        channel_id = interaction.channel_id
+        
+        # Load config
+        from utils.storage import p, load_json_safe, save_json_safe
+        cfg = load_json_safe(p("config.json"), {})
+        
+        # Ensure structure
+        if guild_id not in cfg:
+            cfg[guild_id] = {}
+            
+        # Update Channel ID
+        cfg[guild_id]["channel_id"] = channel_id
+        
+        # Ensure default filters if empty
+        if "filters" not in cfg[guild_id]:
+            cfg[guild_id]["filters"] = []
+            
+        save_json_safe(p("config.json"), cfg)
+        
+        log.info(f"Canal de notícias definido para guild {guild_id}: {channel_id} ({interaction.channel.name})")
+        
+        await interaction.response.send_message(
+            f"✅ Canal {interaction.channel.mention} configurado com sucesso para receber notícias!",
+            ephemeral=True
+        )
+
+    @set_canal.error
+    async def set_canal_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+        if isinstance(error, app_commands.MissingPermissions):
+            await interaction.response.send_message(
+                "❌ Você precisa de permissão **Gerenciar Canais** para usar este comando.",
+                ephemeral=True
+            )
+        else:
+            log.exception("Erro no comando /set_canal", exc_info=error)
+
 
 async def setup(bot, run_scan_once_func):
     """

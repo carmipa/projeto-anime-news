@@ -3,18 +3,26 @@ Filters module - News filtering and categorization logic.
 """
 from typing import Dict, List, Any
 from utils.html import clean_html
-from utils.logger import log  # GRC Logger
+from utils.logger import log
 import re
 
 # =========================================================
 # FILTROS / CATEGORIAS
 # =========================================================
 
-# Terms to EXCLUDE (Clothing, Generic noise)
+# Terms to EXCLUDE
 BLACKLIST = [
     "t-shirt", "apparel", "hoodie", "jacket", "clothing", "fashion",
-    # "gunpla", "figure", "statue", "toy", "model kit", "ver.ka", "p-bandai", <-- Removed strict block on merch
     "tcg", "card game", "board game", "cosplay"
+]
+
+# Termos que GARANTEM que o conteúdo é "Anime-related"
+STRICT_ANIME_KEYWORDS = [
+    "anime", "animes", "manga", "mangas", "mangá", "mangás", 
+    "light novel", "visual novel", "otaku", "japan", "japanese", 
+    "gundam", "ghibli", "shonen", "seinen", "shoujo", "josei", 
+    "isekai", "mecha", "tokusatsu", "chibi", "kawaii", 
+    "animation", "animacao", "animação", "kaiju"
 ]
 
 CAT_MAP = {
@@ -42,6 +50,9 @@ CAT_MAP = {
     ]
 }
 
+# Alias para compatibilidade pt-br na config.json
+CAT_MAP["musica"] = CAT_MAP["music"]
+
 FILTER_OPTIONS = {
     "todos": ("TUDO", "🌟"),
     "anime": ("Anime", "🎬"),
@@ -58,10 +69,7 @@ FILTER_OPTIONS = {
 # =========================================================
 
 def _contains_any(text: str, keywords: List[str]) -> str:
-    """
-    Verifica se alguma keyword está presente no texto.
-    Retorna a keyword encontrada ou String vazia.
-    """
+    """Verifica se alguma keyword está presente no texto."""
     if not keywords:
         return ""
 
@@ -73,16 +81,11 @@ def _contains_any(text: str, keywords: List[str]) -> str:
 
 
 def match_intel(guild_id: str, title: str, summary: str, config: Dict[str, Any]) -> bool:
-    """
-    Decide se notícia deve ir para a guild.
-    
-    Returns: True se aprovado.
-    """
+    """Decide se notícia deve ir para a guild."""
     g = config.get(str(guild_id), {})
     filters = g.get("filters", [])
 
     if not isinstance(filters, list) or not filters:
-        # log.debug(f"Guild {guild_id} sem filtros configurados.")
         return False
 
     content = f"{clean_html(title)} {clean_html(summary)}".lower()
@@ -104,11 +107,12 @@ def match_intel(guild_id: str, title: str, summary: str, config: Dict[str, Any])
         matched_kw = _contains_any(content, kws)
         
         if matched_kw:
-            # Lógica Especial: GAMES ou FILMES apenas se tiver relação com ANIME
-            if f in ["games", "filmes"]:
-                anime_kws = CAT_MAP.get("anime", [])
-                if not _contains_any(content, anime_kws):
-                     log.debug(f"⚠️ [FILTER-{f.upper()}] Ignorado pois não possui termo de anime. Título: {title[:30]}...")
+            # Lógica Especial: GAMES, FILMES ou MUSICA exigem validação estrita de Anime
+            if f in ["games", "filmes", "music", "musica"]:
+                strict_match = _contains_any(content, STRICT_ANIME_KEYWORDS)
+                
+                if not strict_match:
+                     log.debug(f"⚠️ [FILTER-{f.upper()}] Ignorado pois não possui termo estrito de anime. Termo original: '{matched_kw}' | Título: {title[:30]}...")
                      continue
             
             log.info(f"✅ [ALLOWED] Guild: {guild_id} | Filtro: {f.upper()} | Termo: '{matched_kw}' | Título: {title[:50]}...")

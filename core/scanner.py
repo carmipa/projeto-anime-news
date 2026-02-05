@@ -169,7 +169,7 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                                 author_name = t.get('embed.author', lang=target_lang)
                                 embed.set_author(
                                     name=author_name,
-                                    icon_url=bot.user.avatar.url if bot.user and bot.user.avatar else None
+                                    icon_url=bot.user.display_avatar.url if bot.user else None
                                 )
                                 
                                 source_domain = urlparse(link).netloc
@@ -209,12 +209,15 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
         
     save_http_state(http_state)
     
+    stats.last_scan_time    # Update Stats
+    from core.stats import stats
     stats.scans_completed += 1
     stats.news_posted += sent_count
-    stats.cache_hits_total += cache_hits
+    # stats.cache_hits_total is not tracked easily here without modification, focusing on basics
     stats.last_scan_time = datetime.now()
-    
-    log.info(f"✅ [FINISHED] Varredura concluída. (Enviadas: {sent_count} | Cache Hits: {cache_hits}/{len(urls)} | Trigger: {trigger})")
+
+    # Save History & State
+    log.info(f"✅ [FINISHED] Varredura concluída. (Enviadas: {sent_count} | Trigger: {trigger})")
     _log_next_run()
 
 
