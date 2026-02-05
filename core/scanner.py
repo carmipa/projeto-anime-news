@@ -209,11 +209,11 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
         
     save_http_state(http_state)
     
-    stats.last_scan_time    # Update Stats
+    # Update Stats
     from core.stats import stats
     stats.scans_completed += 1
     stats.news_posted += sent_count
-    # stats.cache_hits_total is not tracked easily here without modification, focusing on basics
+    # stats.cache_hits_total += cache_hits
     stats.last_scan_time = datetime.now()
 
     # Save History & State

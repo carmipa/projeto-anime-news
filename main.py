@@ -74,10 +74,7 @@ async def main():
         # Iniciar Web Server
         await start_web_server(port=8080)
         
-        # Registrar Views Persistentesr (Fase 10)
-        await start_web_server(port=8080)
-
-        # 1. Carregar Views Persistentes
+        # Registrar Views Persistentes
         cfg = load_json_safe(p("config.json"), {})
         if isinstance(cfg, dict):
             for gid in cfg.keys():

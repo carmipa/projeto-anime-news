@@ -1,19 +1,64 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AnimeBot News - Status</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1a1a1a; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: #2d2d2d; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); width: 300px; }
-        h1 { color: #ff6b6b; margin-top: 0; text-align: center; }
-        .stat { display: flex; justify-content: space-between; margin: 10px 0; border-bottom: 1px solid #444; padding-bottom: 5px; }
-        .stat:last-child { border-bottom: none; }
-        .val { font-weight: bold; color: #4ecdc4; }
-        .status-dot { height: 10px; width: 10px; background-color: #2ecc71; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a1a;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .card {
+            background: #2d2d2d;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            width: 300px;
+        }
+
+        h1 {
+            color: #ff6b6b;
+            margin-top: 0;
+            text-align: center;
+        }
+
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            border-bottom: 1px solid #444;
+            padding-bottom: 5px;
+        }
+
+        .stat:last-child {
+            border-bottom: none;
+        }
+
+        .val {
+            font-weight: bold;
+            color: #4ecdc4;
+        }
+
+        .status-dot {
+            height: 10px;
+            width: 10px;
+            background-color: #2ecc71;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
     </style>
 </head>
+
 <body>
     <div class="card">
         <h1><span class="status-dot"></span>AnimeBot</h1>
@@ -25,7 +70,7 @@
     </div>
 
     <script>
-        async def fetchStats() {
+        async function fetchStats() {
             try {
                 const response = await fetch('/api/stats');
                 const data = await response.json();
@@ -42,4 +87,5 @@
         fetchStats();
     </script>
 </body>
+
 </html>
