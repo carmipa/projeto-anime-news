@@ -5,7 +5,7 @@
       "https://www.youtube.com/feeds/videos.xml?channel_id=UCmDLyFjSutfb1MK7F6cMVSA",
       "https://www.youtube.com/feeds/videos.xml?channel_id=UCY5fcqgSrQItPAX_Z5Frmwg",
       "https://www.youtube.com/feeds/videos.xml?channel_id=UCVc-JLY3Db6-O48y7TS4N7Q",
-      "https://www.youtube.com/feeds/videos.xml?channel_id=UCi40p5_erF7-XTE8e-qAbOA",
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCc1l5mTmAv2GC_PXrBpqyKQ",
       "https://www.youtube.com/feeds/videos.xml?channel_id=UCb-ekPowbBlQhyt7ZXPiu5Q",
       "https://www.youtube.com/feeds/videos.xml?channel_id=UCWOA1ZGywLbqmigxE4Qlvuw",
       "https://www.youtube.com/feeds/videos.xml?channel_id=UCETrNUjuH4EoRdZNFx9EI-A",
@@ -25,7 +25,9 @@
       "https://www.youtube.com/feeds/videos.xml?channel_id=UC7wu64jFsV02bbu6UHUd7JA",
       "https://www.youtube.com/feeds/videos.xml?channel_id=UCS_zFUPZOlLkXLAybjYuCxQ",
       "https://www.youtube.com/feeds/videos.xml?channel_id=UCKy1dAqELo0zrOtPkf0eTMw",
-      "https://www.youtube.com/feeds/videos.xml?channel_id=UC_ntXHv-XdKCD7CPynVvnQw"
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UC_ntXHv-XdKCD7CPynVvnQw",
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCzLtKasUj5agj2Gjvw83ZoQ",
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCTOaq4HfNMstuJfZxHszxgw"
     ],
     "anime_news_and_games": [
       "https://www.youtube.com/feeds/videos.xml?channel_id=UCY5fcqgSrQItPAX_Z5Frmwg",
@@ -41,7 +43,9 @@
       "https://www.animenewsnetwork.com/news/rss.xml",
       "https://myanimelist.net/rss/news.xml",
       "https://www.siliconera.com/feed/",
-      "https://otakuusamagazine.com/feed/"
+      "https://otakuusamagazine.com/feed/",
+      "https://www.mappa.co.jp/en/news/feed",
+      "https://www.st-trigger.co.jp/rss"
     ],
     "streaming_platforms": []
   }
