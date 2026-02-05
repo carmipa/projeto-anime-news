@@ -45,7 +45,10 @@
       "https://www.siliconera.com/feed/",
       "https://otakuusamagazine.com/feed/",
       "https://www.mappa.co.jp/en/news/feed",
-      "https://www.st-trigger.co.jp/rss"
+      "https://www.mappa.co.jp/en/works-en/feed",
+      "https://www.st-trigger.co.jp/rss",
+      "https://a1p.jp/news/feed",
+      "https://www.toei-animation.com/news/feed"
     ],
     "streaming_platforms": []
   }
