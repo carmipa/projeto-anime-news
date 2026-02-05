@@ -9,6 +9,8 @@ services:
     # Variáveis de ambiente (do arquivo .env)
     env_file:
       - .env
+    environment:
+      - TZ=America/Sao_Paulo
 
     # Volumes para persistir dados
     volumes:
@@ -17,6 +19,10 @@ services:
       - ./history.json:/app/history.json
       - ./state.json:/app/state.json
       - ./sources.json:/app/sources.json
+      
+      # Timezone do host
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
 
       # Logs persistentes (opcional)
       - ./logs:/app/logs
