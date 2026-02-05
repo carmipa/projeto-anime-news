@@ -121,7 +121,22 @@ async def main():
     # =========================================================
     # START
     # =========================================================
-    await bot.start(TOKEN)
+    
+    token = TOKEN.strip()
+    if not token or token == "seutokenaqui" or len(token) < 50:
+         log.error(f"❌ TOKEN INVÁLIDO! (Len: {len(token) if token else 0})")
+         log.error("Por favor, verifique o arquivo .env e adicione um token válido do Discord.")
+         return
+    
+    if "." not in token:
+         log.error(f"❌ O TOKEN parece inválido! (Len: {len(token)})")
+         log.error("⚠️  Ele não contém pontos (.). Você pode ter copiado a 'Public Key' em vez do 'Bot Token'.")
+         log.error("➡️  Vá no Discord Developer Portal -> Bot -> Reset Token -> Copie o NOVO token.")
+         return
+    
+    
+    log.info(f"🔑 Token carregado. (Len: {len(token)})")
+    await bot.start(token)
 
 
 if __name__ == "__main__":

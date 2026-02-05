@@ -10,10 +10,10 @@ import re
 # =========================================================
 
 # Terms to EXCLUDE (Video Games, Toys, Clothing)
+# Terms to EXCLUDE (Clothing, Generic noise)
 BLACKLIST = [
-    "gameplay", "videogame", "ps5", "xbox", "nintendo", "switch",
     "t-shirt", "apparel", "hoodie", "jacket", "clothing", "fashion",
-    "gunpla", "figure", "statue", "toy", "model kit", "ver.ka", "p-bandai",
+    # "gunpla", "figure", "statue", "toy", "model kit", "ver.ka", "p-bandai", <-- Removed strict block on merch
     "tcg", "card game", "board game", "cosplay"
 ]
 
@@ -30,6 +30,15 @@ CAT_MAP = {
     "music": [
         "music", "ost", "soundtrack", "opening", "ending", 
         "theme song", "op", "ed", "singer", "concert"
+    ],
+    "gunpla": [
+        "gunpla", "gundam", "model kit", "ver.ka", "p-bandai", "hg", "mg", "pg", "rg", "robot spirits", "metal build"
+    ],
+    "games": [
+        "game", "rpg", "console", "pc", "ps5", "xbox", "nintendo", "switch", "mobile game", "visual novel"
+    ],
+    "filmes": [
+        "film", "movie", "live-action", "cinema", "theatrical"
     ]
 }
 
@@ -38,6 +47,9 @@ FILTER_OPTIONS = {
     "anime": ("Anime", "🎬"),
     "news": ("News", "📰"),
     "music": ("Music", "🎵"),
+    "gunpla": ("Gunpla", "🤖"),
+    "games": ("Games", "🎮"),
+    "filmes": ("Filmes", "🎥"),
 }
 
 

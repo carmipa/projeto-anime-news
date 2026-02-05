@@ -71,3 +71,44 @@ def update_cache_state(url: str, response_headers: Any, state: Dict[str, Dict[st
         state[url]["last_modified"] = response_headers["Last-Modified"]
     elif "last-modified" in response_headers:
         state[url]["last_modified"] = response_headers["last-modified"]
+
+    # Atualiza timestamp de acesso
+    from datetime import datetime
+    state[url]["last_accessed"] = datetime.now().isoformat()
+
+
+def cleanup_state(state: Dict[str, Dict[str, str]], days: int = 7) -> int:
+    """
+    Remove entradas do state não acessadas há X dias.
+    
+    Args:
+        state: O dicionário de estado.
+        days: Número de dias para corte.
+        
+    Returns:
+        Número de entradas removidas.
+    """
+    from datetime import datetime, timedelta
+    
+    cutoff = datetime.now() - timedelta(days=days)
+    to_remove = []
+    
+    for url, data in state.items():
+        # Se não tiver data (legado), marca agora para não deletar imediatamente
+        # ou assume antigo? Melhor assumir ativo e marcar agora.
+        if "last_accessed" not in data:
+            data["last_accessed"] = datetime.now().isoformat()
+            continue
+            
+        try:
+            last_access = datetime.fromisoformat(data["last_accessed"])
+            if last_access < cutoff:
+                to_remove.append(url)
+        except ValueError:
+            # Data inválida, reseta
+            data["last_accessed"] = datetime.now().isoformat()
+
+    for url in to_remove:
+        del state[url]
+        
+    return len(to_remove)

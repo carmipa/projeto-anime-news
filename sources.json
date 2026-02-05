@@ -1,49 +1,44 @@
 {
   "youtube_feeds": {
     "anime_studios": [
-      "https://www.youtube.com/channel/UC6pGdL66_Y_oNOf8vS_nS2w",
-      "https://www.youtube.com/channel/UC9GidZjtG2Tdj66uW3vGvHw",
-      "https://www.youtube.com/channel/UC7pY9XN7mK5Y8U7LpY3pXQw",
-      "https://www.youtube.com/channel/UCpI_yidI5uV9R_9_xJ9y9_g",
-      "https://www.youtube.com/channel/UCeP9zN_6C5oYfFm3v_L3m9g",
-      "https://www.youtube.com/channel/UCyN_A8_y9_oNOf8vS_nS2w",
-      "https://www.youtube.com/channel/UCpI_yidI5uV9R_9_xJ9y9_g",
-      "https://www.youtube.com/channel/UCyN_A8_y9_oNOf8vS_nS2w",
-      "https://www.youtube.com/channel/UC7pY9XN7mK5Y8U7LpY3pXQw",
-      "https://www.youtube.com/channel/UCyN_A8_y9_oNOf8vS_nS2w",
-      "https://www.youtube.com/channel/UC6pGdL66_Y_oNOf8vS_nS2w",
-      "https://www.youtube.com/channel/UCpI_yidI5uV9R_9_xJ9y9_g"
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q",
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UC9YHyj7QSkkSg2pjQ7M8Khg",
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCb-ekPowbBlQhyt7ZXPiu5Q",
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCWOA1ZGywLbqmigxE4Qlvuw",
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCETrNUjuH4EoRdZNFx9EI-A",
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCZYShIzcvrEBXqqjqYfMAsA",
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCcjqSFXBg2cGQg5r0YooMiA",
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UC14QT5j2nQI8lKBCGtrrBQA",
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCejtUitnpnf8Be-v5NuDSLw",
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCJx5KP-pCUmL9eZUv-mIcNw",
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UC3pTpoDKt17IrCDH60kSNPA",
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCv2ejD5B1xOYtGB2cf80B8g",
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCmDLyFjSutfb1MK7F6cMVSA",
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCPZkYpT5XIUou8sV8zk-3jQ"
     ],
     "anime_distributors": [
-      "https://www.youtube.com/channel/UC6pGdL66_Y_oNOf8vS_nS2w",
-      "https://www.youtube.com/channel/UC9GidZjtG2Tdj66uW3vGvHw",
-      "https://www.youtube.com/channel/UC7pY9XN7mK5Y8U7LpY3pXQw",
-      "https://www.youtube.com/channel/UCpI_yidI5uV9R_9_xJ9y9_g",
-      "https://www.youtube.com/channel/UCeP9zN_6C5oYfFm3v_L3m9g",
-      "https://www.youtube.com/channel/UCyN_A8_y9_oNOf8vS_nS2w",
-      "https://www.youtube.com/channel/UCpI_yidI5uV9R_9_xJ9y9_g",
-      "https://www.youtube.com/channel/UCyN_A8_y9_oNOf8vS_nS2w",
-      "https://www.youtube.com/channel/UC7pY9XN7mK5Y8U7LpY3pXQw",
-      "https://www.youtube.com/channel/UCyN_A8_y9_oNOf8vS_nS2w",
-      "https://www.youtube.com/channel/UC6pGdL66_Y_oNOf8vS_nS2w"
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCc1l5mTmAv2GC_PXrBpqyKQ",
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCgettoG9GHSS8oOT1tXVEEw",
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UC7wu64jFsV02bbu6UHUd7JA",
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCS_zFUPZOlLkXLAybjYuCxQ",
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCKy1dAqELo0zrOtPkf0eTMw",
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UC_ntXHv-XdKCD7CPynVvnQw"
     ],
-    "anime_news": [
-      "https://www.youtube.com/channel/UC6pGdL66_Y_oNOf8vS_nS2w",
-      "https://www.youtube.com/channel/UC9GidZjtG2Tdj66uW3vGvHw",
-      "https://www.youtube.com/channel/UC7pY9XN7mK5Y8U7LpY3pXQw",
-      "https://www.youtube.com/channel/UCpI_yidI5uV9R_9_xJ9y9_g"
+    "anime_news_and_games": [
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCY5fcqgSrQItPAX_Z5Frmwg",
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCB_BuOpGioQ7EVKm2F21dnw",
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCWJ5MfdQZ6jXbF5gYuSAf5Q",
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UC6pGDc4bFGD1_36IKv3FnYg",
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCqly9F4Fr_jf2Y1Cy5hacRg",
+      "https://www.youtube.com/feeds/videos.xml?user=IGNentertainment"
     ]
   },
   "official_sites": {
     "anime_news": [
-      "https://www.animenewsnetwork.com/"
+      "https://www.animenewsnetwork.com/news/rss.xml"
     ],
     "streaming_platforms": [
-      "https://www.netflix.com/br/browse/genre/7424",
-      "https://www.primevideo.com/",
-      "https://www.crunchyroll.com/pt-br",
-      "https://www.disneyplus.com/",
-      "https://www.hidive.com/"
+      "https://www.crunchyroll.com/newsrss?lang=pt_BR"
     ]
   }
 }

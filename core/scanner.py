@@ -17,7 +17,7 @@ from discord.ext import tasks
 from settings import LOOP_MINUTES
 from utils.storage import p, load_json_safe, save_json_safe
 from utils.html import clean_html
-from utils.cache import load_http_state, save_http_state, get_cache_headers, update_cache_state
+from utils.cache import load_http_state, save_http_state, get_cache_headers, update_cache_state, cleanup_state
 from utils.translator import t, translate_to_target
 from core.stats import stats
 from core.filters import match_intel
@@ -199,6 +199,10 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                 log.error(f"Erro processando feed {link_url}: {e}")
 
     save_history(history_list)
+    cleaned = cleanup_state(http_state)
+    if cleaned > 0:
+        log.info(f"🧹 Limpeza de estado: {cleaned} entradas antigas removidas.")
+        
     save_http_state(http_state)
     
     stats.scans_completed += 1
