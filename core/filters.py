@@ -12,35 +12,52 @@ import re
 
 # Terms to EXCLUDE
 BLACKLIST = [
+    # merch / genéricos
     "t-shirt", "apparel", "hoodie", "jacket", "clothing", "fashion",
-    "tcg", "card game", "board game", "cosplay"
+    "tcg", "card game", "board game", "cosplay",
+
+    # esportes / futebol (ruído)
+    "football", "soccer", "futebol", "fifa", "uefa",
+    "champions league", "premier league", "la liga", "bundesliga",
+    "libertadores", "world cup", "copa do mundo",
+    "goal", "gol", "match", "partida", "penalty", "pênalti",
 ]
 
 # Termos que GARANTEM que o conteúdo é "Anime-related"
 STRICT_ANIME_KEYWORDS = [
-    "anime", "animes", "manga", "mangas", "mangá", "mangás", 
-    "light novel", "visual novel", "otaku", "japan", "japanese", 
-    "gundam", "ghibli", "shonen", "seinen", "shoujo", "josei", 
-    "isekai", "mecha", "tokusatsu", "chibi", "kawaii", 
-    "animation", "animacao", "animação", "kaiju"
+    "anime", "animes", "manga", "mangas", "mangá", "mangás",
+    "light novel", "visual novel", "otaku", "japan", "japanese",
+    "gundam", "ghibli", "shonen", "seinen", "shoujo", "josei",
+    "isekai", "mecha", "tokusatsu", "chibi", "kawaii",
+    "animation", "animacao", "animação", "kaiju",
+
+    # termos de “marca” que ajudam a ancorar no universo anime
+    "crunchyroll", "aniplex", "kadokawa"
 ]
 
 CAT_MAP = {
     "anime": [
-        "anime", "film", "movie", "series", "season", "episode", 
-        "pv", "trailer", "teaser", "ova", "ona", "special", 
-        "streaming", "crunchyroll", "netflix"
+        # termos realmente do ecossistema anime
+        "anime", "animes",
+        "manga", "mangas", "mangá", "mangás",
+        "light novel", "visual novel",
+        "pv", "trailer", "teaser", "ova", "ona", "special",
+        "crunchyroll", "aniplex", "kadokawa",
+
+        # mantive "netflix" mas com validação estrita abaixo
+        "netflix",
     ],
     "news": [
-        "news", "update", "announcement", "report", "interview", 
+        "news", "update", "announcement", "report", "interview",
         "production", "cast", "staff", "studio"
     ],
     "music": [
-        "music", "ost", "soundtrack", "opening", "ending", 
+        "music", "ost", "soundtrack", "opening", "ending",
         "theme song", "op", "ed", "singer", "concert"
     ],
     "gunpla": [
-        "gunpla", "gundam", "model kit", "ver.ka", "p-bandai", "hg", "mg", "pg", "rg", "robot spirits", "metal build"
+        "gunpla", "gundam", "model kit", "ver.ka", "p-bandai", "hg", "mg", "pg", "rg",
+        "robot spirits", "metal build"
     ],
     "games": [
         "game", "rpg", "console", "pc", "ps5", "xbox", "nintendo", "switch", "mobile game", "visual novel"
@@ -75,7 +92,7 @@ def _contains_any(text: str, keywords: List[str]) -> str:
 
     escaped_kws = [re.escape(k) for k in keywords]
     pattern_str = r'(?<!:)\b(' + '|'.join(escaped_kws) + r')s?\b'
-    
+
     match = re.search(pattern_str, text, re.IGNORECASE)
     return match.group(1) if match else ""
 
@@ -105,16 +122,19 @@ def match_intel(guild_id: str, title: str, summary: str, config: Dict[str, Any])
     for f in filters:
         kws = CAT_MAP.get(f, [])
         matched_kw = _contains_any(content, kws)
-        
+
         if matched_kw:
-            # Lógica Especial: GAMES, FILMES ou MUSICA exigem validação estrita de Anime
-            if f in ["games", "filmes", "music", "musica"]:
+            # ✅ Regra: qualquer categoria “temática” precisa ter ao menos 1 termo estrito
+            # Isso elimina séries/jogos/futebol que batem em palavras genéricas.
+            if f in ["anime", "games", "filmes", "music", "musica"]:
                 strict_match = _contains_any(content, STRICT_ANIME_KEYWORDS)
-                
                 if not strict_match:
-                     log.debug(f"⚠️ [FILTER-{f.upper()}] Ignorado pois não possui termo estrito de anime. Termo original: '{matched_kw}' | Título: {title[:30]}...")
-                     continue
-            
+                    log.debug(
+                        f"⚠️ [FILTER-{f.upper()}] Ignorado pois não possui termo estrito de anime. "
+                        f"Termo original: '{matched_kw}' | Título: {title[:50]}..."
+                    )
+                    continue
+
             log.info(f"✅ [ALLOWED] Guild: {guild_id} | Filtro: {f.upper()} | Termo: '{matched_kw}' | Título: {title[:50]}...")
             return True
 
