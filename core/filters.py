@@ -11,6 +11,7 @@ import re
 # =========================================================
 
 # Terms to EXCLUDE
+# Terms to EXCLUDE
 BLACKLIST = [
     # merch / genéricos
     "t-shirt", "apparel", "hoodie", "jacket", "clothing", "fashion",
@@ -20,16 +21,14 @@ BLACKLIST = [
     "football", "soccer", "futebol", "fifa", "uefa",
     "champions league", "premier league", "la liga", "bundesliga",
     "libertadores", "world cup", "copa do mundo",
-    "goal", "gol", "match", "partida", "penalty", "pênalti",
 ]
 
 # Termos que GARANTEM que o conteúdo é "Anime-related"
 STRICT_ANIME_KEYWORDS = [
     "anime", "animes", "manga", "mangas", "mangá", "mangás",
-    "light novel", "visual novel", "otaku", "japan", "japanese",
+    "light novel", "visual novel", "otaku",
     "gundam", "ghibli", "shonen", "seinen", "shoujo", "josei",
-    "isekai", "mecha", "tokusatsu", "chibi", "kawaii",
-    "animation", "animacao", "animação", "kaiju",
+    "isekai", "mecha", "tokusatsu", "chibi", "kawaii", "kaiju",
 
     # termos de “marca” que ajudam a ancorar no universo anime
     "crunchyroll", "aniplex", "kadokawa"
@@ -131,7 +130,8 @@ def match_intel(guild_id: str, title: str, summary: str, config: Dict[str, Any])
         if matched_kw:
             # ✅ Regra: qualquer categoria “temática” precisa ter ao menos 1 termo estrito
             # Isso elimina séries/jogos/futebol que batem em palavras genéricas.
-            if f in ["anime", "games", "filmes", "music", "musica"]:
+            # AGORA INCLUI "NEWS" PARA EVITAR "ANNOUNCEMENT" DE JOGOS NÃO-ANIME
+            if f in ["anime", "news", "games", "filmes", "music", "musica"]:
                 strict_match = _contains_any(content, STRICT_ANIME_KEYWORDS)
                 if not strict_match:
                     log.debug(
