@@ -21,6 +21,10 @@ BLACKLIST = [
     "football", "soccer", "futebol", "fifa", "uefa",
     "champions league", "premier league", "la liga", "bundesliga",
     "libertadores", "world cup", "copa do mundo",
+
+    # TV genérica / Reality / Séries não-anime
+    "reality show", "reality tv", "netflix series", "live action series",
+    "season finale", "now playing", "official teaser"
 ]
 
 # Termos que GARANTEM que o conteúdo é "Anime-related"
@@ -31,7 +35,16 @@ STRICT_ANIME_KEYWORDS = [
     "isekai", "mecha", "tokusatsu", "chibi", "kawaii", "kaiju",
 
     # termos de “marca” que ajudam a ancorar no universo anime
-    "crunchyroll", "aniplex", "kadokawa"
+    "crunchyroll", "aniplex", "kadokawa", "toho animation", "kyoani", "mappa",
+    "ufotable", "wit studio", "bones", "production i.g", "science saru"
+]
+
+UNTRUSTED_SOURCES = [
+    # Feeds genéricos que misturam games/filmes e precisam de filtro estrito
+    "youtube.com/feeds/videos.xml?user=IGNentertainment",
+    "youtube.com/feeds/videos.xml?user=Netflix",
+    "youtube.com/feeds/videos.xml?user=NetflixJP",
+    "youtube.com/feeds/videos.xml?channel_id=UCi4eH63_g45WyW6YqJVIWFA", # IGN Movie Trailers (exemplo) (usuario nao confirmou ID, mas boa pratica)
 ]
 
 CAT_MAP = {
@@ -43,8 +56,8 @@ CAT_MAP = {
         "pv", "trailer", "teaser", "ova", "ona", "special",
         "crunchyroll", "aniplex", "kadokawa",
 
-        # mantive "netflix" mas com validação estrita abaixo
-        "netflix",
+        # REMOVIDO "netflix" daqui para não liberar automaticamente.
+        # Se for Netflix, passará apenas se tiver STRICT kw (anime, manga...)
     ],
     "news": [
         "news", "update", "announcement", "report", "interview",
@@ -96,7 +109,7 @@ def _contains_any(text: str, keywords: List[str]) -> str:
     return match.group(1) if match else ""
 
 
-def match_intel(guild_id: str, title: str, summary: str, config: Dict[str, Any]) -> bool:
+def match_intel(guild_id: str, title: str, summary: str, config: Dict[str, Any], source: str = "") -> bool:
     """Decide se notícia deve ir para a guild."""
     g = config.get(str(guild_id), {})
     filters = g.get("filters", [])
@@ -105,6 +118,10 @@ def match_intel(guild_id: str, title: str, summary: str, config: Dict[str, Any])
         return False
 
     content = f"{clean_html(title)} {clean_html(summary)}".lower()
+
+    # Checa confiabilidade da fonte
+    source_l = (source or "").lower()
+    is_untrusted = any(u.lower() in source_l for u in UNTRUSTED_SOURCES)
 
     # 1. Bloqueia Blacklist
     blocked_word = _contains_any(content, BLACKLIST)
@@ -115,6 +132,12 @@ def match_intel(guild_id: str, title: str, summary: str, config: Dict[str, Any])
     # 2. "todos" = tudo relacionado a anime (exige termo estrito)
     if "todos" in filters:
         strict_match = _contains_any(content, STRICT_ANIME_KEYWORDS)
+
+        # Regra de Ouro: Fonte Não Confiável EXIGE termo estrito
+        if is_untrusted and not strict_match:
+            log.debug(f"❌ [IGNORED] Fonte não confiável sem termo estrito | src={source[:30]}... | Título: {title[:50]}...")
+            return False
+
         if not strict_match:
             log.debug(f"❌ [IGNORED] Guild: {guild_id} | TODOS ativo, mas sem termo estrito | Título: {title[:50]}...")
             return False

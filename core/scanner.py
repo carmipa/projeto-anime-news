@@ -27,6 +27,8 @@ from utils.logger import log  # GRC Logger
 
 # log = logging.getLogger("AnimeBotIntel") <-- Removed local logger
 
+SCAN_LOCK = asyncio.Lock()
+
 def load_sources() -> List[str]:
     """Carrega todas as URLs de sources.json em uma lista plana."""
     data = load_json_safe(p("sources.json"), {})
@@ -42,8 +44,14 @@ def load_sources() -> List[str]:
         elif isinstance(category, list):
             urls.extend(category)
             
-    # Remove duplicates and empty strings
-    return list(set(u for u in urls if u))
+    # Ordered deduplication
+    seen = set()
+    out = []
+    for u in urls:
+        if u and u not in seen:
+            seen.add(u)
+            out.append(u)
+    return out
 
 def _load_history() -> Tuple[List[str], Set[str]]:
     hist_list = load_json_safe(p("history.json"), [])
@@ -66,173 +74,178 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
     """
     Executa uma rodada de verificação de feeds.
     """
-    # 🔎 Scan Start
-    log.info(f"🔎 Iniciando varredura... (gatilho={trigger})")
-    
-    urls = load_sources()
-    if not urls:
-        log.warning("⚠️ [CONFIG] Nenhuma fonte encontrada em sources.json")
+    if SCAN_LOCK.locked():
+        log.warning(f"⏭️ [SKIP] Varredura já em execução. Ignorando trigger={trigger}")
         return
 
-    history_list, history_set = _load_history()
-    http_state = load_http_state()
-    config = load_json_safe(p("config.json"), {})
-    
-    sent_count = 0
-    cache_hits = 0
-    
-    # SSL context for aiohttp
-    ssl_ctx = ssl.create_default_context(cafile=certifi.where())
-
-    async with aiohttp.ClientSession() as session:
-        for link_url in urls:
-            try:
-                # 1. Fetch with Cache Headers
-                headers = get_cache_headers(link_url, http_state)
-                
-                async with session.get(link_url, headers=headers, ssl=ssl_ctx, timeout=20) as resp:
-                    if resp.status == 304:
-                        cache_hits += 1
-                        continue
-                    
-                    if resp.status != 200:
-                        log.warning(f"⚠️ [HTTP] Status {resp.status} para {link_url}")
-                        continue
-                        
-                    content = await resp.read()
-                    
-                    # Update cache state (ETag/Last-Modified)
-                    update_cache_state(link_url, resp.headers, http_state)
-
-                # 2. Parse Feed
-                feed = feedparser.parse(content)
-                if feed.bozo:
-                    log.debug(f"🤡 [PARSER] Bozo exception parsing {link_url}: {feed.bozo_exception}")
-
-                if not feed.entries:
-                    continue
-
-                # 3. Process Entries (Newest first usually)
-                # We check newest to oldest, stop if we hit history? 
-                # Or just check all? Checking all is safer for small feeds.
-                for entry in feed.entries[:10]: # Check top 10
-                    link = getattr(entry, "link", "")
-                    title = getattr(entry, "title", "No Title")
-                    
-                    if not link or link in history_set:
-                        if link in history_set:
-                            # Log skipped item at DEBUG level (or INFO if debugging)
-                            log.debug(f"📜 [HISTORY] Item já processado: {title[:50]}...")
-                        continue
-                        
-                    title = getattr(entry, "title", "No Title")
-                    summary = getattr(entry, "summary", "")
-                    
-                    # Determine media type
-                    is_media = "youtube.com" in link or "youtu.be" in link or "twitch.tv" in link
-
-                    # 4. Check Filters per Guild
-                    # We need to broadcast this news to ALL matching guilds
-                    posted_anywhere = False
-                    
-                    for guild_id, guild_cfg in config.items():
-                        if not match_intel(guild_id, title, summary, config):
-                            continue
-                            
-                        channel_id = guild_cfg.get("channel_id")
-                        if not channel_id:
-                            continue
-                            
-                        channel = bot.get_channel(int(channel_id))
-                        if not channel:
-                            log.error(f"❌ [CONFIG] Canal {channel_id} não encontrado ou sem permissão de ver!")
-                            continue
-
-
-                        # Determine Language
-                        target_lang = t.detect_lang(guild_id)
-                        
-                        # Translate
-                        t_translated = await translate_to_target(clean_html(title), target_lang)
-                        s_translated = await translate_to_target(clean_html(summary), target_lang)
-
-                        # 5. Send to Discord
-                        try:
-                            log.info(f"📤 [SENDING] Enviando para canal {channel.name} ({channel_id})...")
-                            if is_media:
-                                msg_content = f"**{t_translated}**\n{link}"
-                                view = WatchView(link)
-                                await channel.send(content=msg_content, view=view)
-                            else:
-                                embed = discord.Embed(
-                                    title=t_translated[:256],
-                                    description=s_translated[:2000], # Limit desc
-                                    url=link,
-                                    color=discord.Color.from_rgb(255, 0, 32),
-                                    timestamp=datetime.now()
-                                )
-                                
-                                author_name = t.get('embed.author', lang=target_lang)
-                                embed.set_author(
-                                    name=author_name,
-                                    icon_url=bot.user.display_avatar.url if bot.user else None
-                                )
-                                
-                                source_domain = urlparse(link).netloc
-                                footer_text = t.get('embed.source', lang=target_lang, source=source_domain)
-                                embed.set_footer(text=footer_text)
-                                
-                                # Try to find image
-                                if hasattr(entry, "media_thumbnail") and entry.media_thumbnail:
-                                    try:
-                                        thumb_url = entry.media_thumbnail[0].get("url")
-                                        if thumb_url:
-                                            embed.set_thumbnail(url=thumb_url)
-                                    except: pass
-                                
-                                await channel.send(embed=embed)
-
-                            posted_anywhere = True
-                            
-                        except Exception as e:
-                            log.error(f"❌ [DISCORD] Falha ao enviar no canal {channel_id}: {e}")
-                    
-                    # If sent to at least one guild, verify counting
-                    if posted_anywhere:
-                        sent_count += 1
-                        # Mark as seen GLOBALLY (if logic allows)
-                        # The original logic marked it as seen if 'posted_anywhere'.
-                        history_set.add(link)
-                        history_list.append(link)
-
-            except Exception as e:
-                log.error(f"🔥 [SCANNER] Erro processando feed {link_url}: {e}")
-
-    save_history(history_list)
-    cleaned = cleanup_state(http_state)
-    if cleaned > 0:
-        log.info(f"🧹 [CLEANUP] Limpeza de estado: {cleaned} entradas antigas removidas.")
+    async with SCAN_LOCK:
+        # 🔎 Scan Start
+        log.info(f"🔎 Iniciando varredura... (gatilho={trigger})")
         
-    save_http_state(http_state)
-    
-    # Update Stats
-    from core.stats import stats
-    stats.scans_completed += 1
-    stats.news_posted += sent_count
-    # stats.cache_hits_total += cache_hits
-    stats.last_scan_time = datetime.now()
+        urls = load_sources()
+        if not urls:
+            log.warning("⚠️ [CONFIG] Nenhuma fonte encontrada em sources.json")
+            return
 
-    # Save History & State
-    log.info(f"✅ [FINISHED] Varredura concluída. (Enviadas: {sent_count} | Trigger: {trigger})")
-    
-    # Persist Last Scan Time in http_state for status command (survives restart)
-    http_state["_meta"] = {
-        "last_scan": datetime.now().isoformat(),
-        "last_run_trigger": trigger
-    }
-    save_http_state(http_state)
+        history_list, history_set = _load_history()
+        http_state = load_http_state()
+        config = load_json_safe(p("config.json"), {})
+        
+        sent_count = 0
+        cache_hits = 0
+        
+        # SSL context for aiohttp
+        ssl_ctx = ssl.create_default_context(cafile=certifi.where())
 
-    _log_next_run()
+        async with aiohttp.ClientSession() as session:
+            for link_url in urls:
+                try:
+                    # 1. Fetch with Cache Headers
+                    headers = get_cache_headers(link_url, http_state)
+                    
+                    async with session.get(link_url, headers=headers, ssl=ssl_ctx, timeout=20) as resp:
+                        if resp.status == 304:
+                            cache_hits += 1
+                            continue
+                        
+                        if resp.status != 200:
+                            log.warning(f"⚠️ [HTTP] Status {resp.status} para {link_url}")
+                            continue
+                            
+                        content = await resp.read()
+                        
+                        # Update cache state (ETag/Last-Modified)
+                        update_cache_state(link_url, resp.headers, http_state)
+
+                    # 2. Parse Feed
+                    feed = feedparser.parse(content)
+                    if feed.bozo:
+                        log.debug(f"🤡 [PARSER] Bozo exception parsing {link_url}: {feed.bozo_exception}")
+
+                    if not feed.entries:
+                        continue
+
+                    # 3. Process Entries (Newest first usually)
+                    for entry in feed.entries[:10]: # Check top 10
+                        link = getattr(entry, "link", "")
+                        title = getattr(entry, "title", "No Title")
+                        
+                        if not link or link in history_set:
+                            if link in history_set:
+                                # Log skipped item at DEBUG level (or INFO if debugging)
+                                log.debug(f"📜 [HISTORY] Item já processado: {title[:50]}...")
+                            continue
+                            
+                        summary = getattr(entry, "summary", "")
+                        
+                        # Determine media type
+                        is_media = "youtube.com" in link or "youtu.be" in link or "twitch.tv" in link
+
+                        # log 1x por item, não 1x por guild
+                        log.debug(f"🧪 [ITEM] src={link_url} | title={title[:80]}...")
+
+                        # 4. Check Filters per Guild
+                        # We need to broadcast this news to ALL matching guilds
+                        posted_anywhere = False
+                        
+                        for guild_id, guild_cfg in config.items():
+                            if not match_intel(guild_id, title, summary, config, source=link_url):
+                                continue
+                                
+                            channel_id = guild_cfg.get("channel_id")
+                            if not channel_id:
+                                continue
+                                
+                            channel = bot.get_channel(int(channel_id))
+                            if not channel:
+                                log.error(f"❌ [CONFIG] Canal {channel_id} não encontrado ou sem permissão de ver!")
+                                continue
+
+
+                            # Determine Language
+                            target_lang = t.detect_lang(guild_id)
+                            
+                            # Translate
+                            t_translated = await translate_to_target(clean_html(title), target_lang)
+                            s_translated = await translate_to_target(clean_html(summary), target_lang)
+
+                            # 5. Send to Discord
+                            try:
+                                log.info(f"📤 [SENDING] Enviando para canal {channel.name} ({channel_id})...")
+                                if is_media:
+                                    msg_content = f"**{t_translated}**\n{link}"
+                                    view = WatchView(link)
+                                    await channel.send(content=msg_content, view=view)
+                                else:
+                                    embed = discord.Embed(
+                                        title=t_translated[:256],
+                                        description=s_translated[:2000], # Limit desc
+                                        url=link,
+                                        color=discord.Color.from_rgb(255, 0, 32),
+                                        timestamp=datetime.now()
+                                    )
+                                    
+                                    author_name = t.get('embed.author', lang=target_lang)
+                                    embed.set_author(
+                                        name=author_name,
+                                        icon_url=bot.user.display_avatar.url if bot.user else None
+                                    )
+                                    
+                                    source_domain = urlparse(link).netloc
+                                    footer_text = t.get('embed.source', lang=target_lang, source=source_domain)
+                                    embed.set_footer(text=footer_text)
+                                    
+                                    # Try to find image
+                                    if hasattr(entry, "media_thumbnail") and entry.media_thumbnail:
+                                        try:
+                                            thumb_url = entry.media_thumbnail[0].get("url")
+                                            if thumb_url:
+                                                embed.set_thumbnail(url=thumb_url)
+                                        except: pass
+                                    
+                                    await channel.send(embed=embed)
+
+                                posted_anywhere = True
+                                
+                            except Exception as e:
+                                log.error(f"❌ [DISCORD] Falha ao enviar no canal {channel_id}: {e}")
+                        
+                        # If sent to at least one guild, verify counting
+                        if posted_anywhere:
+                            sent_count += 1
+                            # Mark as seen GLOBALLY (if logic allows)
+                            # The original logic marked it as seen if 'posted_anywhere'.
+                            history_set.add(link)
+                            history_list.append(link)
+
+                except Exception as e:
+                    log.error(f"🔥 [SCANNER] Erro processando feed {link_url}: {e}")
+
+        save_history(history_list)
+        cleaned = cleanup_state(http_state)
+        if cleaned > 0:
+            log.info(f"🧹 [CLEANUP] Limpeza de estado: {cleaned} entradas antigas removidas.")
+            
+        save_http_state(http_state)
+        
+        # Update Stats
+        from core.stats import stats
+        stats.scans_completed += 1
+        stats.news_posted += sent_count
+        # stats.cache_hits_total += cache_hits
+        stats.last_scan_time = datetime.now()
+
+        # Save History & State
+        log.info(f"✅ [FINISHED] Varredura concluída. (Enviadas: {sent_count} | Trigger: {trigger})")
+        
+        # Persist Last Scan Time in http_state for status command (survives restart)
+        http_state["_meta"] = {
+            "last_scan": datetime.now().isoformat(),
+            "last_run_trigger": trigger
+        }
+        save_http_state(http_state)
+
+        _log_next_run()
 
 
 # =========================================================
