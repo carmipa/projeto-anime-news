@@ -66,9 +66,10 @@ def save_history(hist_list: List[str]):
         hist_list = hist_list[-1000:]
     save_json_safe(p("history.json"), hist_list)
 
-def _log_next_run():
-    next_run = datetime.now() + timedelta(minutes=LOOP_MINUTES)
-    log.info(f"⏳ Próxima varredura: {next_run.strftime('%H:%M:%S')}")
+def _log_next_run(when: datetime | None = None):
+    if when is None:
+        when = datetime.now() + timedelta(minutes=LOOP_MINUTES)
+    log.info(f"⏳ Próxima varredura: {when.strftime('%H:%M:%S')}")
 
 async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
     """
@@ -146,7 +147,7 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
 
                         # 4. Check Filters per Guild
                         # We need to broadcast this news to ALL matching guilds
-                        posted_anywhere = False
+                        posted_channels = []
                         
                         for guild_id, guild_cfg in config.items():
                             if not match_intel(guild_id, title, summary, config, source=link_url):
@@ -204,19 +205,18 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                                         except: pass
                                     
                                     await channel.send(embed=embed)
-
-                                posted_anywhere = True
+                                    posted_channels.append(str(channel_id))
                                 
                             except Exception as e:
                                 log.error(f"❌ [DISCORD] Falha ao enviar no canal {channel_id}: {e}")
                         
                         # If sent to at least one guild, verify counting
-                        if posted_anywhere:
+                        if posted_channels:
                             sent_count += 1
                             # Mark as seen GLOBALLY (if logic allows)
-                            # The original logic marked it as seen if 'posted_anywhere'.
                             history_set.add(link)
                             history_list.append(link)
+                            log.debug(f"✅ [POSTED] link={link} | channels={','.join(posted_channels)}")
 
                 except Exception as e:
                     log.error(f"🔥 [SCANNER] Erro processando feed {link_url}: {e}")
@@ -245,7 +245,8 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
         }
         save_http_state(http_state)
 
-        _log_next_run()
+        if trigger != "loop":
+            _log_next_run()
 
 
 # =========================================================
@@ -261,6 +262,8 @@ def start_scheduler(bot: discord.Client):
     @tasks.loop(minutes=LOOP_MINUTES)
     async def intelligence_gathering():
         await run_scan_once(bot, trigger="loop")
+        if intelligence_gathering.next_iteration:
+            _log_next_run(intelligence_gathering.next_iteration)
     
     @intelligence_gathering.before_loop
     async def _before_loop():
