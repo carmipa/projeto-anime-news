@@ -94,6 +94,9 @@ def cleanup_state(state: Dict[str, Dict[str, str]], days: int = 7) -> int:
     to_remove = []
     
     for url, data in state.items():
+        if url.startswith("_"):
+            continue
+            
         # Se não tiver data (legado), marca agora para não deletar imediatamente
         # ou assume antigo? Melhor assumir ativo e marcar agora.
         if "last_accessed" not in data:

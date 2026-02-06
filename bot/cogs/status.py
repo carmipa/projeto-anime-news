@@ -56,7 +56,17 @@ class StatusCog(commands.Cog):
         if stats.last_scan_time:
             last_scan_str = f"<t:{int(stats.last_scan_time.timestamp())}:R>"
         else:
-            last_scan_str = "Nenhuma ainda"
+            # Fallback: Check persisted state
+            try:
+                from utils.cache import load_http_state
+                state = load_http_state()
+                if "_meta" in state and "last_scan" in state["_meta"]:
+                    dt = datetime.fromisoformat(state["_meta"]["last_scan"])
+                    last_scan_str = f"<t:{int(dt.timestamp())}:R>"
+                else:
+                    last_scan_str = "Nenhuma ainda"
+            except Exception:
+                last_scan_str = "Nenhuma ainda"
         
         embed.add_field(
             name="🕐 Última Varredura",

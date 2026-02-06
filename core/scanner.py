@@ -117,7 +117,12 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                 # Or just check all? Checking all is safer for small feeds.
                 for entry in feed.entries[:10]: # Check top 10
                     link = getattr(entry, "link", "")
+                    title = getattr(entry, "title", "No Title")
+                    
                     if not link or link in history_set:
+                        if link in history_set:
+                            # Log skipped item at DEBUG level (or INFO if debugging)
+                            log.debug(f"📜 [HISTORY] Item já processado: {title[:50]}...")
                         continue
                         
                     title = getattr(entry, "title", "No Title")
@@ -142,6 +147,7 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                         if not channel:
                             log.error(f"❌ [CONFIG] Canal {channel_id} não encontrado ou sem permissão de ver!")
                             continue
+
 
                         # Determine Language
                         target_lang = t.detect_lang(guild_id)
@@ -218,6 +224,14 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
 
     # Save History & State
     log.info(f"✅ [FINISHED] Varredura concluída. (Enviadas: {sent_count} | Trigger: {trigger})")
+    
+    # Persist Last Scan Time in http_state for status command (survives restart)
+    http_state["_meta"] = {
+        "last_scan": datetime.now().isoformat(),
+        "last_run_trigger": trigger
+    }
+    save_http_state(http_state)
+
     _log_next_run()
 
 
