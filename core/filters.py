@@ -113,9 +113,14 @@ def match_intel(guild_id: str, title: str, summary: str, config: Dict[str, Any])
         log.warning(f"🚫 [BLOCKED] Guild: {guild_id} | Filtro: BLACKLIST | Termo: '{blocked_word}' | Título: {title[:50]}...")
         return False
 
-    # 2. "todos" libera tudo
+    # 2. "todos" = tudo relacionado a anime (exige termo estrito)
     if "todos" in filters:
-        log.info(f"✅ [ALLOWED] Guild: {guild_id} | Filtro: TODOS | Título: {title[:50]}...")
+        strict_match = _contains_any(content, STRICT_ANIME_KEYWORDS)
+        if not strict_match:
+            log.debug(f"❌ [IGNORED] Guild: {guild_id} | TODOS ativo, mas sem termo estrito | Título: {title[:50]}...")
+            return False
+
+        log.info(f"✅ [ALLOWED] Guild: {guild_id} | Filtro: TODOS | Termo: '{strict_match}' | Título: {title[:50]}...")
         return True
 
     # 3. Verifica categorias específicas
