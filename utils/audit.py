@@ -4,7 +4,7 @@ Structured logging for security events, configuration changes, and compliance tr
 """
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List
 from enum import Enum
 

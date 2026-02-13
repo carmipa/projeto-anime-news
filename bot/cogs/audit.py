@@ -6,6 +6,7 @@ from discord.ext import commands
 from discord import app_commands
 from datetime import datetime, timedelta
 from typing import Optional
+import logging
 
 from utils.audit import audit_logger, AuditEventType, AuditSeverity
 from utils.logger import log, log_with_context

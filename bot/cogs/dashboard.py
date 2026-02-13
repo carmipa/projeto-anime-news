@@ -47,8 +47,12 @@ class DashboardCog(commands.Cog):
         cfg[guild_id]["channel_id"] = channel_id
         
         # Garante filtros
-        if "filters" not in cfg[guild_id]:
-            cfg[guild_id]["filters"] = []
+        # Como o bot é focado em notícias de anime, definimos um preset padrão
+        # amigável (anime + news + music). Os botões abaixo servem apenas para
+        # personalização avançada.
+        default_filters = ["anime", "news", "music"]
+        if "filters" not in cfg[guild_id] or not cfg[guild_id].get("filters"):
+            cfg[guild_id]["filters"] = default_filters
         
         # Salva
         save_json_safe(p("config.json"), cfg)
@@ -61,7 +65,11 @@ class DashboardCog(commands.Cog):
         # Envia painel no canal
         msg = await interaction.channel.send(
             "🛰️ **ANIME BOOT NEWS DASHBOARD**\n"
-            "Configure os filtros de notícias abaixo:",
+            "Este é um bot de **notícias de anime**.\n"
+            "Por padrão ele já vem configurado para enviar apenas conteúdo de anime.\n\n"
+            "Use os botões abaixo **apenas se quiser personalizar**:\n"
+            "- Ativar/desativar categorias principais (anime, news, music)\n"
+            "- Ver filtros atuais ou resetar para o padrão.",
             view=view
         )
         

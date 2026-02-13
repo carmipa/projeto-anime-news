@@ -62,7 +62,19 @@ class FilterDashboard(discord.ui.View):
         self.clear_items()
         active = set(self._filters())
         
+        # O bot é focado em notícias de anime. Para não poluir a UI com
+        # muitas opções, exibimos apenas os filtros principais no painel:
+        # - anime (conteúdo de anime em geral)
+        # - news (notícias sobre produção / bastidores)
+        # - music (openings/OST relacionados a anime)
+        #
+        # Filtros adicionais (games, filmes, gunpla, etc.) continuam
+        # suportados via config.json, mas não aparecem como botões aqui.
+        visible_keys = {"anime", "news", "music"}
+        
         for key, (label, emoji) in FILTER_OPTIONS.items():
+            if key not in visible_keys:
+                continue
             is_active = key in active
             style = discord.ButtonStyle.success if is_active else discord.ButtonStyle.secondary
             
