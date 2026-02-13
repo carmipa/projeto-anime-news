@@ -317,7 +317,7 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                                     # Para vídeos, mantém descrição completa e link visível
                                     embed_description = f"{s_translated[:1900]}\n\n🔗 **Assistir:** {link}"
                                 
-                                embed_url = link
+                                embed_url = None if is_media else link
 
                                 embed = discord.Embed(
                                     title=embed_title,
@@ -337,7 +337,7 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                                 footer_text = t.get('embed.source', lang=target_lang, source=source_domain)
                                 embed.set_footer(text=footer_text)
                                 
-                                if hasattr(entry, "media_thumbnail") and entry.media_thumbnail:
+                                if not is_media and hasattr(entry, "media_thumbnail") and entry.media_thumbnail:
                                     try:
                                         thumb_url = entry.media_thumbnail[0].get("url")
                                         if thumb_url:
