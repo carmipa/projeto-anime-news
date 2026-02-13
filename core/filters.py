@@ -86,7 +86,6 @@ UNTRUSTED_BLACKLIST = [
     "green room",
     "grwm",
     "set tour",
-    "behind the scenes",
     "canção de torcida",
     "song",
     "manager",
