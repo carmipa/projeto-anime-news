@@ -317,10 +317,15 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                                     # Para vídeos, mantém descrição completa e link visível
                                     embed_description = f"{s_translated[:1900]}\n\n🔗 **Assistir:** {link}"
                                 
+                                # FIX: For media (YouTube), we remove the URL from the embed
+                                # to prevent it from "hijacking" the preview, allowing Discord
+                                # to show its native player below our embed.
+                                embed_url = None if is_media else link
+
                                 embed = discord.Embed(
                                     title=embed_title,
                                     description=embed_description,
-                                    url=link,
+                                    url=embed_url,
                                     color=color,
                                     timestamp=datetime.now()
                                 )
@@ -336,7 +341,8 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                                 embed.set_footer(text=footer_text)
                                 
                                 # Try to find image (serve tanto para news quanto para vídeos)
-                                if hasattr(entry, "media_thumbnail") and entry.media_thumbnail:
+                                # FIX: For media, we also avoid setting the thumbnail to prevent conflict
+                                if not is_media and hasattr(entry, "media_thumbnail") and entry.media_thumbnail:
                                     try:
                                         thumb_url = entry.media_thumbnail[0].get("url")
                                         if thumb_url:
