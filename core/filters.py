@@ -23,13 +23,18 @@ BLACKLIST = [
     "libertadores", "world cup", "copa do mundo",
     "baseball", "basketball", "volleyball", "wbc", "mlb", "nba", "tennis",
     "basquete", "vôlei", "beisebol", "野球", "ベースボール", "サッカー",
-    "world baseball classic",
+    "world baseball classic", "clássico mundial de beisebol", "clássico mundial",
+    "samurai japan", "serv japan", "侍ジャパン", "ワールドベースボールクラシック",
+    "world baseball", "baseball classic", "beisebol clássico",
 
     # TV genérica / Reality / Séries não-anime (genérico)
     "reality show", "reality tv", "variety show",
     "live action series", "behind the scenes", "set tour",
     "season finale", "now playing", "documentary", "documentário",
     "twice", "timelesz", "k-pop", "j-pop",
+    "grwm", "get ready with me", "green room", "tour",
+    "this is i", "este sou eu", "o namorado", "the boyfriend",
+    "netflix japan", "netflix japão", "netflix série", "netflix series",
 ]
 
 # Termos que GARANTEM que o conteúdo é "Anime-related"
@@ -69,10 +74,26 @@ UNTRUSTED_BLACKLIST = [
     "hollywood drift",
     "netflix series",
     "netflix japan",
+    "netflix japão",
     "netflix reality",
     "kokuho",
     "dollhouse",
     "the boyfriend",
+    "o namorado",
+    "this is i",
+    "este sou eu",
+    "green room",
+    "grwm",
+    "set tour",
+    "behind the scenes",
+    "canção de torcida",
+    "song",
+    "manager",
+    "pressão",
+    "circunstâncias",
+    "circumstances",
+    "情事",
+    "事情",
 ]
 
 CAT_MAP = {
@@ -127,14 +148,26 @@ FILTER_OPTIONS = {
 def _contains_any(text: str, keywords: List[str]) -> str:
     """Verifica se alguma keyword está presente no texto.
     Retorna a keyword que bateu (ou "" se não bateu).
+    Usa busca case-insensitive e suporta caracteres especiais.
     """
     if not keywords:
         return ""
 
-    escaped_kws = [re.escape(k) for k in keywords]
-    pattern_str = r'(?<!:)\b(' + '|'.join(escaped_kws) + r')s?\b'
-    match = re.search(pattern_str, text, re.IGNORECASE)
-    return match.group(1) if match else ""
+    text_lower = text.lower()
+    
+    # Primeiro tenta com regex para palavras completas (quando possível)
+    for kw in keywords:
+        kw_lower = kw.lower()
+        # Para palavras simples, usa word boundaries
+        if kw_lower.replace(" ", "").replace("-", "").isalnum():
+            pattern = r'\b' + re.escape(kw_lower) + r's?\b'
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                return kw
+        # Para frases ou termos com caracteres especiais, usa busca simples
+        elif kw_lower in text_lower:
+            return kw
+    
+    return ""
 
 
 def _is_untrusted_source(source: str) -> bool:

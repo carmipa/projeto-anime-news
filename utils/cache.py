@@ -82,36 +82,46 @@ def cleanup_state(state: Dict[str, Dict[str, str]], days: int = 7) -> int:
     Remove entradas do state não acessadas há X dias.
     
     Args:
-        state: O dicionário de estado.
+        state: O dicionário de estado (modificado in-place).
         days: Número de dias para corte.
         
     Returns:
         Número de entradas removidas.
     """
     from datetime import datetime, timedelta
+    from .logger import log
     
     cutoff = datetime.now() - timedelta(days=days)
     to_remove = []
+    updated_count = 0
     
     for url, data in state.items():
+        # Preserva metadados (começam com _)
         if url.startswith("_"):
             continue
             
         # Se não tiver data (legado), marca agora para não deletar imediatamente
-        # ou assume antigo? Melhor assumir ativo e marcar agora.
         if "last_accessed" not in data:
             data["last_accessed"] = datetime.now().isoformat()
+            updated_count += 1
             continue
             
         try:
             last_access = datetime.fromisoformat(data["last_accessed"])
             if last_access < cutoff:
                 to_remove.append(url)
-        except ValueError:
-            # Data inválida, reseta
+                log.debug(f"🧹 [CLEANUP] Marcando para remoção: {url[:60]}... (último acesso: {last_access.isoformat()})")
+        except (ValueError, TypeError) as e:
+            # Data inválida, reseta para agora
+            log.warning(f"⚠️ [CLEANUP] Data inválida em {url[:60]}...: {e}. Resetando timestamp.")
             data["last_accessed"] = datetime.now().isoformat()
+            updated_count += 1
 
+    # Remove entradas antigas
     for url in to_remove:
         del state[url]
+    
+    if len(to_remove) > 0 or updated_count > 0:
+        log.info(f"🧹 [CLEANUP] Removidas {len(to_remove)} entradas antigas (>={days} dias). {updated_count} timestamps atualizados.")
         
     return len(to_remove)

@@ -301,44 +301,49 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                             # 5. Classifica tipo e envia para o Discord
                             try:
                                 log.info(f"📤 [SENDING] Enviando para canal {channel.name} ({channel_id})...")
+
+                                # Classifica o tipo de item (lançamento, vídeo, repost, news)
+                                entry_type = _classify_entry_type(title, link, is_media)
+                                color = _get_embed_color(entry_type)
+
+                                # Monta embed padrão com cor baseada no tipo
+                                embed = discord.Embed(
+                                    title=t_translated[:256],
+                                    description=s_translated[:2000] if not is_media else f"{s_translated[:1900]}\n\n🔗 {link}",
+                                    url=link,
+                                    color=color,
+                                    timestamp=datetime.now()
+                                )
+                                
+                                author_name = t.get('embed.author', lang=target_lang)
+                                embed.set_author(
+                                    name=author_name,
+                                    icon_url=bot.user.display_avatar.url if bot.user else None
+                                )
+                                
+                                source_domain = urlparse(link).netloc
+                                footer_text = t.get('embed.source', lang=target_lang, source=source_domain)
+                                embed.set_footer(text=footer_text)
+                                
+                                # Try to find image (serve tanto para news quanto para vídeos)
+                                if hasattr(entry, "media_thumbnail") and entry.media_thumbnail:
+                                    try:
+                                        thumb_url = entry.media_thumbnail[0].get("url")
+                                        if thumb_url:
+                                            embed.set_thumbnail(url=thumb_url)
+                                    except (IndexError, AttributeError, KeyError, TypeError) as e:
+                                        log.debug(f"⚠️ [EMBED] Erro ao adicionar thumbnail: {e}")
+                                    except Exception as e:
+                                        log.warning(f"⚠️ [EMBED] Erro inesperado ao processar thumbnail: {e}")
+
+                                # Para mídias (YouTube/Twitch), mantém o botão de assistir
                                 if is_media:
-                                    msg_content = f"**{t_translated}**\n{link}"
                                     view = WatchView(link)
-                                    await channel.send(content=msg_content, view=view)
+                                    await channel.send(embed=embed, view=view)
                                 else:
-                                    entry_type = _classify_entry_type(title, link, is_media)
-                                    color = _get_embed_color(entry_type)
-                                    embed = discord.Embed(
-                                        title=t_translated[:256],
-                                        description=s_translated[:2000], # Limit desc
-                                        url=link,
-                                        color=color,
-                                        timestamp=datetime.now()
-                                    )
-                                    
-                                    author_name = t.get('embed.author', lang=target_lang)
-                                    embed.set_author(
-                                        name=author_name,
-                                        icon_url=bot.user.display_avatar.url if bot.user else None
-                                    )
-                                    
-                                    source_domain = urlparse(link).netloc
-                                    footer_text = t.get('embed.source', lang=target_lang, source=source_domain)
-                                    embed.set_footer(text=footer_text)
-                                    
-                                    # Try to find image
-                                    if hasattr(entry, "media_thumbnail") and entry.media_thumbnail:
-                                        try:
-                                            thumb_url = entry.media_thumbnail[0].get("url")
-                                            if thumb_url:
-                                                embed.set_thumbnail(url=thumb_url)
-                                        except (IndexError, AttributeError, KeyError, TypeError) as e:
-                                            log.debug(f"⚠️ [EMBED] Erro ao adicionar thumbnail: {e}")
-                                        except Exception as e:
-                                            log.warning(f"⚠️ [EMBED] Erro inesperado ao processar thumbnail: {e}")
-                                    
                                     await channel.send(embed=embed)
-                                    posted_channels.append(str(channel_id))
+
+                                posted_channels.append(str(channel_id))
                                 
                             except Exception as e:
                                 log.error(f"❌ [DISCORD] Falha ao enviar no canal {channel_id}: {e}")
