@@ -396,13 +396,14 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                                     if yt_thumb:
                                         embed.set_thumbnail(url=yt_thumb)
 
-                                # Para mídias (YouTube/Twitch), envia link no content para ativar preview do player
+                                # Para mídias (YouTube/Twitch), envia apenas título + link no content para ativar preview do player nativo
                                 if is_media:
-                                    # Envia o link do YouTube no content para que o Discord crie o preview automático com player
-                                    # O embed mantém as informações e cores, e o link no content ativa o player embutido
+                                    # Para que o Discord crie o preview automático com player (unfurl), 
+                                    # NÃO podemos enviar um embed customizado na mesma mensagem.
                                     view = WatchView(link)
-                                    log.debug(f"🎬 [MEDIA] Enviando vídeo com player embutido: {link[:60]}...")
-                                    await channel.send(content=link, embed=embed, view=view)
+                                    content = f"**{t_translated}**\n{link}"
+                                    log.debug(f"🎬 [MEDIA] Enviando vídeo com player nativo: {link[:60]}...")
+                                    await channel.send(content=content, view=view)
                                 else:
                                     await channel.send(embed=embed)
 
