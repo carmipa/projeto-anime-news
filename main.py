@@ -26,6 +26,10 @@ from utils.storage import p, load_json_safe
 from bot.views.filter_dashboard import FilterDashboard
 from core.scanner import start_scheduler, run_scan_once
 from web.server import start_web_server  # Novo web server
+from utils.config_validator import ConfigValidator
+from utils.security import validate_discord_token
+from utils.audit import audit_logger, AuditEventType, AuditSeverity
+from utils.exceptions import ConfigurationError
 
 
 # Configuração de Logs - REMOVIDO (Centralizado em utils.logger)
@@ -71,6 +75,28 @@ async def main():
     async def on_ready():
         log.info(f"✅ Bot conectado como: {bot.user} (ID: {bot.user.id})")
         
+        # Audit log - Bot iniciado
+        audit_logger.log(
+            AuditEventType.BOT_STARTED,
+            severity=AuditSeverity.INFO,
+            details={"bot_id": bot.user.id, "bot_name": str(bot.user)}
+        )
+        
+        # Validar configuração na inicialização
+        try:
+            validation_results = ConfigValidator.validate_all()
+            if validation_results["errors"]:
+                log.warning(f"⚠️ Avisos de validação: {validation_results['errors']}")
+            else:
+                log.info("✅ Configuração validada com sucesso")
+        except Exception as e:
+            log.error(f"❌ Erro ao validar configuração: {e}")
+            audit_logger.log(
+                AuditEventType.ERROR_OCCURRED,
+                severity=AuditSeverity.ERROR,
+                details={"error": "config_validation_failed", "message": str(e)}
+            )
+        
         # Iniciar Web Server
         await start_web_server(port=8080)
         
@@ -81,8 +107,20 @@ async def main():
                 try:
                     bot.add_view(FilterDashboard(int(gid)))
                     log.info(f"View persistente registrada para guild {gid}")
+                    audit_logger.log(
+                        AuditEventType.COG_LOADED,
+                        severity=AuditSeverity.INFO,
+                        guild_id=int(gid),
+                        details={"component": "FilterDashboard"}
+                    )
                 except Exception as e:
                     log.error(f"Erro view guild {gid}: {e}")
+                    audit_logger.log(
+                        AuditEventType.COG_FAILED,
+                        severity=AuditSeverity.ERROR,
+                        guild_id=int(gid),
+                        details={"component": "FilterDashboard", "error": str(e)}
+                    )
 
         # 2. Sync Comandos (Slash)
         try:
@@ -91,10 +129,21 @@ async def main():
             # IMPORTANTE: É necessário copiar os globais para a guild antes de syncar a guild
             for guild in bot.guilds:
                 bot.tree.copy_global_to(guild=discord.Object(id=guild.id))
-                await bot.tree.sync(guild=discord.Object(id=guild.id))
-                log.info(f"Comandos sincronizados (copy_global) em: {guild.name}")
+                synced = await bot.tree.sync(guild=discord.Object(id=guild.id))
+                log.info(f"Comandos sincronizados (copy_global) em: {guild.name} ({len(synced)} comandos)")
+                audit_logger.log(
+                    AuditEventType.COG_LOADED,
+                    severity=AuditSeverity.INFO,
+                    guild_id=guild.id,
+                    details={"component": "slash_commands", "count": len(synced)}
+                )
         except Exception as e:
             log.error(f"Falha no sync de comandos: {e}")
+            audit_logger.log(
+                AuditEventType.COG_FAILED,
+                severity=AuditSeverity.ERROR,
+                details={"component": "slash_commands", "error": str(e)}
+            )
 
         # 3. Iniciar Loop de Scanner
         start_scheduler(bot)
@@ -112,6 +161,7 @@ async def main():
         # Carrega extensões normais (que têm setup(bot))
         await bot.load_extension("bot.cogs.status")
         await bot.load_extension("bot.cogs.info")
+        await bot.load_extension("bot.cogs.audit")  # Comandos de auditoria
         
         # Admin e Dashboard precisam da função de scan injetada
         # Como load_extension não aceita args, importamos e setup manual 
@@ -126,27 +176,37 @@ async def main():
         await setup_dashboard(bot, bound_scan)
         
         log.info("🧩 Cogs carregados com sucesso.")
+        audit_logger.log(
+            AuditEventType.COG_LOADED,
+            severity=AuditSeverity.INFO,
+            details={"component": "all_cogs", "status": "success"}
+        )
     except Exception as e:
         log.exception(f"Falha ao carregar cogs: {e}")
+        audit_logger.log(
+            AuditEventType.COG_FAILED,
+            severity=AuditSeverity.CRITICAL,
+            details={"component": "cogs_loading", "error": str(e)}
+        )
 
     # =========================================================
     # START
     # =========================================================
     
     token = TOKEN.strip()
-    if not token or token == "seutokenaqui" or len(token) < 50:
-         log.error(f"❌ TOKEN INVÁLIDO! (Len: {len(token) if token else 0})")
-         log.error("Por favor, verifique o arquivo .env e adicione um token válido do Discord.")
-         return
     
-    if "." not in token:
-         log.error(f"❌ O TOKEN parece inválido! (Len: {len(token)})")
-         log.error("⚠️  Ele não contém pontos (.). Você pode ter copiado a 'Public Key' em vez do 'Bot Token'.")
-         log.error("➡️  Vá no Discord Developer Portal -> Bot -> Reset Token -> Copie o NOVO token.")
-         return
+    # Validação de segurança do token
+    if not validate_discord_token(token):
+        log.error(f"❌ TOKEN INVÁLIDO! (Len: {len(token) if token else 0})")
+        log.error("Por favor, verifique o arquivo .env e adicione um token válido do Discord.")
+        audit_logger.log(
+            AuditEventType.TOKEN_VALIDATION_FAILED,
+            severity=AuditSeverity.CRITICAL,
+            details={"token_length": len(token) if token else 0}
+        )
+        return
     
-    
-    log.info(f"🔑 Token carregado. (Len: {len(token)})")
+    log.info(f"🔑 Token carregado e validado. (Len: {len(token)})")
     await bot.start(token)
 
 
@@ -155,5 +215,15 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         log.info("🛑 Bot encerrado pelo usuário.")
+        audit_logger.log(
+            AuditEventType.BOT_STOPPED,
+            severity=AuditSeverity.INFO,
+            details={"reason": "keyboard_interrupt"}
+        )
     except Exception as e:
         log.exception(f"🔥 Erro fatal: {e}")
+        audit_logger.log(
+            AuditEventType.ERROR_OCCURRED,
+            severity=AuditSeverity.CRITICAL,
+            details={"error": "fatal_error", "message": str(e), "error_type": type(e).__name__}
+        )

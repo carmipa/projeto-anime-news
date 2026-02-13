@@ -60,6 +60,26 @@ Força uma varredura imediata de todas as fontes de notícias.
 
 - *Nota: Use com moderação para evitar rate-limit das APIs.*
 
+### `/audit`
+
+Exibe um resumo dos **eventos de auditoria de segurança** recentes para este servidor:
+
+- Mudanças de configuração (canal, filtros, idioma)
+- Eventos de rate limit
+- Erros relevantes de scanner / Discord
+
+> Requer permissão de **Administrador**.
+
+### `/audit_stats`
+
+Mostra **estatísticas agregadas de segurança e auditoria** dos últimos dias:
+
+- Total de eventos
+- Quantidade de erros, avisos e eventos críticos
+- Tipos de evento mais frequentes
+
+> Requer permissão de **Administrador**.
+
 ---
 
 ## ⚡ Comandos Especiais (Dono do Bot)

@@ -1,54 +1,61 @@
-# =========================
-# Segredos / Configs locais
-# =========================
-.env
-.env.*
-!.env.example
-config.json
-
-# =========================
-# Python / Venv / Build
-# =========================
-.venv/
-venv/
-ENV/
-env/
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.coverage
-htmlcov/
-dist/
+*.so
+.Python
 build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
 *.egg-info/
+.installed.cfg
+*.egg
 
-# =========================
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment variables
+.env
+.env.local
+
 # Logs
-# =========================
+logs/
 *.log
 
-# =========================
-# IDEs / Editores
-# =========================
-.idea/
-.vscode/
+# Data files (manter estrutura mas não commitar dados sensíveis)
+# config.json  # Descomente se não quiser commitar config
+# history.json  # Descomente se não quiser commitar histórico
+# state.json  # Descomente se não quiser commitar estado
+# audit.json  # Descomente se não quiser commitar auditoria
 
-# =========================
-# Sistema (Windows/macOS)
-# =========================
+# Assets importantes - NÃO IGNORAR (comentado para garantir que sejam commitados)
+# icon.png
+# icon.png deve ser commitado - é parte da documentação e símbolo do bot
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+
+# OS
 .DS_Store
 Thumbs.db
-desktop.ini
-
-# =========================
-# arquivos gerados do bot
-# =========================
-config/*.json
-state/*.json
-
-# Cache do bot (dedup/etag/translation)
-state.json
-history.json

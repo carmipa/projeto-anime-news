@@ -11,7 +11,10 @@
 [![Status](https://img.shields.io/badge/Status-Ativo-success?style=flat-square)](https://github.com)
 [![License MIT](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 [![Código Aberto](https://img.shields.io/badge/Código-Aberto-blueviolet?style=flat-square)](https://github.com)
-[![Python Version](https://img.shields.io/badge/Pythonrequirements.txt-compatible-blue?style=flat-square)](requirements.txt)
+[![Segurança](https://img.shields.io/badge/Security-Hardened-important?style=flat-square&logo=shield)](SECURITY.md)
+[![Documentação](https://img.shields.io/badge/Docs-PT--BR%20%7C%20EN--US-informational?style=flat-square)](#-guia-completo)
+[![i18n](https://img.shields.io/badge/i18n-PT--BR%20%7C%20EN--US%20%7C%20ES--ES%20%7C%20IT--IT-orange?style=flat-square)](#-sistema-multi-idioma)
+[![Python Version](https://img.shields.io/badge/requirements.txt-compatible-blue?style=flat-square)](requirements.txt)
 [![Docker Ready](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white&style=flat-square)](Dockerfile)
 
 **Monitoramento inteligente de feeds RSS/Atom/YouTube focado exclusivamente em ANIMES**
@@ -34,7 +37,8 @@ Filtragem automática de Games, Merch e Roupas • Dashboard Interativo • Post
 | 🎛️ **Dashboard Persistente** | Painel interativo que funciona mesmo após restart | ✅ Multi-Guild |
 | 🔄 **Deduplicação Avançada** | Histórico em `history.json` - nunca repete notícias | ✅ Automático |
 | 🌐 **Multi-Guild Support** | Configuração independente por servidor Discord | ✅ Suportado |
-| 📝 **Logs Estruturados** | Mensagens de logging em PT-BR para fácil monitoramento | ✅ Sempre Ativo |
+| 📝 **Logs Estruturados** | Logs estruturados (JSON) com auditoria em `audit.json` | ✅ Sempre Ativo |
+| 🛡️ **Segurança & GRC** | Rate limiting, validação de entrada e política completa em `SECURITY.md` | ✅ Endurecido |
 | 🎞️ **Player Nativo** | Vídeos do YouTube/Twitch tocam direto no Discord | ✅ Integrado |
 | 🌍 **Multi-Idioma** | Suporte a EN, PT-BR, ES, IT (detecção automática) | ✅ 4 idiomas |
 | 🖥️ **Web Dashboard** | Painel visual em `http://localhost:8080` com status real | ✅ REST API |
@@ -76,7 +80,39 @@ Filtragem automática de Games, Merch e Roupas • Dashboard Interativo • Post
 
 ## 🧱 Arquitetura Técnica
 
-### 📊 Diagrama de Componentes
+### 🧩 Visão Geral (Mermaid)
+
+```mermaid
+flowchart LR
+    subgraph Inputs[Fontes de Notícias]
+        RSS[RSS / Atom Feeds]
+        YT[YouTube Channels]
+    end
+
+    subgraph Core[Core Scanner]
+        SCAN[APScheduler\nScanner]
+        PIPE[Pipeline de\nProcessamento]
+        FILTER[Filtros & Classificação]
+        TRANS[Tradução]
+    end
+
+    subgraph DiscordSide[Discord Bot]
+        DASH[Dashboard & Views]
+        COGS[Cogs\n(/status, /feeds,\n/audit, /audit_stats)]
+    end
+
+    subgraph Web[Web Dashboard]
+        WEB[aiohttp + Jinja2]
+        API[REST API /api/*]
+    end
+
+    Inputs --> SCAN --> PIPE --> FILTER --> TRANS --> DiscordSide
+    DiscordSide --> WEB
+    PIPE -->|Histórico / Cache| Storage[(JSON\nconfig/history/state)]
+    PIPE -->|Auditoria| Audit[(audit.json)]
+```
+
+### 📊 Diagrama de Componentes (ASCII)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -447,7 +483,10 @@ Resumo rápido:
 - `/feeds` - Lista fontes monitoradas
 - `/ping` - Teste de latência
 - `/setlang` - Muda o idioma (Admin)
+- `/set_canal` - Define o canal atual para receber notícias (Admin)
 - `/forcecheck` - Força varredura (Admin)
+- `/audit` - Mostra eventos recentes de auditoria de segurança (Admin)
+- `/audit_stats` - Estatísticas agregadas de segurança e auditoria (Admin)
 
 ---
 
@@ -603,6 +642,23 @@ WHITELIST_KEYWORDS = [
   }
 }
 ```
+
+---
+
+## 🔒 Segurança & Auditoria
+
+O **AnimeBootNews** vem com um módulo de segurança e GRC completo:
+
+- ✅ **Validação de entrada** (IDs, URLs, idioma, strings)
+- ✅ **Rate limiting** para comandos, scans e alterações de configuração
+- ✅ **Validação de token Discord** em `main.py`
+- ✅ **Auditoria estruturada** em `audit.json` (comandos `/audit` e `/audit_stats`)
+- ✅ **Logs estruturados (JSON)** prontos para ferramentas de observabilidade
+
+Para detalhes técnicos avançados, consulte:
+
+- 📄 `SECURITY.md` – Política de segurança e GRC
+- 📄 `BUGFIXES.md` – Histórico de correções e hardening
 
 ---
 

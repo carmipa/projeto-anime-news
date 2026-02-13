@@ -23,11 +23,97 @@ from core.stats import stats
 from core.filters import match_intel
 from bot.views.player import WatchView
 
-from utils.logger import log  # GRC Logger
+from utils.logger import log, log_with_context  # GRC Logger
+from utils.retry import retry_async, HTTP_RETRY_CONFIG, FEED_PARSE_RETRY_CONFIG
+from utils.exceptions import NetworkError, FeedParseError
+from utils.audit import audit_logger, AuditEventType, AuditSeverity
+from utils.security import validate_url
 
 # log = logging.getLogger("AnimeBotIntel") <-- Removed local logger
 
 SCAN_LOCK = asyncio.Lock()
+
+
+def _classify_entry_type(title: str, link: str, is_media: bool) -> str:
+    """
+    Classifica o tipo de item para fins visuais:
+    - "launch": lançamentos / anúncios fortes (trailer, novo episódio, etc)
+    - "video": vídeos em geral (YouTube/Twitch)
+    - "repost": republicações / atualizações
+    - "news": notícias padrão (default)
+    """
+    text = (title or "").lower()
+
+    if is_media:
+        # Para mídias, diferenciamos lançamentos de vídeos comuns
+        launch_keywords = (
+            "trailer",
+            "pv",
+            "teaser",
+            "opening",
+            "ending",
+            "ost",
+            "soundtrack",
+            "new episode",
+            "episode",
+            "episódio",
+            "estreia",
+            "estreia",
+            "season",
+        )
+        if any(kw in text for kw in launch_keywords):
+            return "launch"
+        return "video"
+
+    # Lançamentos para notícias baseadas em texto (verificar ANTES de repost)
+    launch_keywords_text = (
+        "anunciado",
+        "announced",
+        "revealed",
+        "lançamento",
+        "estreia",
+        "novo anime",
+        "new anime",
+        "season ",
+        "trailer",
+        "pv",
+        "teaser",
+    )
+    if any(kw in text for kw in launch_keywords_text):
+        return "launch"
+
+    # Heurística simples para repost / atualização (apenas se não for lançamento)
+    # Verifica palavras mais específicas primeiro
+    repost_keywords = ("repost", "repostagem", "reprint", "republicado", "republication")
+    if any(kw in text for kw in repost_keywords):
+        return "repost"
+    
+    # "update" e "atualização" podem ser lançamentos também, então só marca como repost
+    # se não tiver keywords de lançamento (já verificado acima)
+    if "update" in text or "atualização" in text:
+        # Se contém "update" mas também tem keywords de lançamento, já foi capturado acima
+        # Se chegou aqui, é provavelmente uma atualização/repost
+        return "repost"
+
+    return "news"
+
+
+def _get_embed_color(entry_type: str) -> discord.Color:
+    """
+    Define cores diferentes para cada tipo de card:
+    - launch (lançamentos): verde
+    - video (vídeos): roxo
+    - repost (repostagens/atualizações): laranja
+    - news (notícias gerais): vermelho padrão
+    """
+    if entry_type == "launch":
+        return discord.Color.green()
+    if entry_type == "video":
+        return discord.Color.purple()
+    if entry_type == "repost":
+        return discord.Color.orange()
+    # news / default
+    return discord.Color.from_rgb(255, 0, 32)
 
 def load_sources() -> List[str]:
     """Carrega todas as URLs de sources.json em uma lista plana."""
@@ -83,6 +169,13 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
         # 🔎 Scan Start
         log.info(f"🔎 Iniciando varredura... (gatilho={trigger})")
         
+        # Audit log
+        audit_logger.log(
+            AuditEventType.SCAN_STARTED,
+            severity=AuditSeverity.INFO,
+            details={"trigger": trigger}
+        )
+        
         urls = load_sources()
         if not urls:
             log.warning("⚠️ [CONFIG] Nenhuma fonte encontrada em sources.json")
@@ -101,27 +194,62 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
         async with aiohttp.ClientSession() as session:
             for link_url in urls:
                 try:
-                    # 1. Fetch with Cache Headers
-                    headers = get_cache_headers(link_url, http_state)
+                    # Validação de segurança da URL
+                    try:
+                        validated_url = validate_url(link_url)
+                    except Exception as e:
+                        log.warning(f"⚠️ [SECURITY] URL inválida ignorada: {link_url} - {e}")
+                        audit_logger.log(
+                            AuditEventType.SECURITY_CHECK_FAILED,
+                            severity=AuditSeverity.WARNING,
+                            details={"url": link_url, "reason": str(e)}
+                        )
+                        continue
                     
-                    async with session.get(link_url, headers=headers, ssl=ssl_ctx, timeout=20) as resp:
-                        if resp.status == 304:
+                    # 1. Fetch with Cache Headers (com retry)
+                    async def fetch_feed():
+                        headers = get_cache_headers(validated_url, http_state)
+                        async with session.get(validated_url, headers=headers, ssl=ssl_ctx, timeout=20) as resp:
+                            if resp.status == 304:
+                                return None, resp  # Cache hit
+                            
+                            if resp.status != 200:
+                                raise NetworkError(f"HTTP {resp.status} para {validated_url}")
+                            
+                            content = await resp.read()
+                            return content, resp
+                    
+                    try:
+                        content, resp = await retry_async(fetch_feed, config=HTTP_RETRY_CONFIG)
+                        
+                        if content is None:  # Cache hit (304)
                             cache_hits += 1
                             continue
                         
-                        if resp.status != 200:
-                            log.warning(f"⚠️ [HTTP] Status {resp.status} para {link_url}")
-                            continue
-                            
-                        content = await resp.read()
-                        
                         # Update cache state (ETag/Last-Modified)
-                        update_cache_state(link_url, resp.headers, http_state)
+                        update_cache_state(validated_url, resp.headers, http_state)
+                    
+                    except NetworkError as e:
+                        log.warning(f"⚠️ [HTTP] Erro ao buscar feed {validated_url}: {e}")
+                        audit_logger.log(
+                            AuditEventType.SCAN_FAILED,
+                            severity=AuditSeverity.WARNING,
+                            details={"url": validated_url, "error": str(e)}
+                        )
+                        continue
 
-                    # 2. Parse Feed
-                    feed = feedparser.parse(content)
-                    if feed.bozo:
-                        log.debug(f"🤡 [PARSER] Bozo exception parsing {link_url}: {feed.bozo_exception}")
+                    # 2. Parse Feed (com retry)
+                    async def parse_feed():
+                        feed = feedparser.parse(content)
+                        if feed.bozo:
+                            raise FeedParseError(f"Erro parsing {validated_url}: {feed.bozo_exception}")
+                        return feed
+                    
+                    try:
+                        feed = await retry_async(parse_feed, config=FEED_PARSE_RETRY_CONFIG)
+                    except FeedParseError as e:
+                        log.debug(f"🤡 [PARSER] Erro parsing {validated_url}: {e}")
+                        continue
 
                     if not feed.entries:
                         continue
@@ -170,7 +298,7 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                             t_translated = await translate_to_target(clean_html(title), target_lang)
                             s_translated = await translate_to_target(clean_html(summary), target_lang)
 
-                            # 5. Send to Discord
+                            # 5. Classifica tipo e envia para o Discord
                             try:
                                 log.info(f"📤 [SENDING] Enviando para canal {channel.name} ({channel_id})...")
                                 if is_media:
@@ -178,11 +306,13 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                                     view = WatchView(link)
                                     await channel.send(content=msg_content, view=view)
                                 else:
+                                    entry_type = _classify_entry_type(title, link, is_media)
+                                    color = _get_embed_color(entry_type)
                                     embed = discord.Embed(
                                         title=t_translated[:256],
                                         description=s_translated[:2000], # Limit desc
                                         url=link,
-                                        color=discord.Color.from_rgb(255, 0, 32),
+                                        color=color,
                                         timestamp=datetime.now()
                                     )
                                     
@@ -202,7 +332,10 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                                             thumb_url = entry.media_thumbnail[0].get("url")
                                             if thumb_url:
                                                 embed.set_thumbnail(url=thumb_url)
-                                        except: pass
+                                        except (IndexError, AttributeError, KeyError, TypeError) as e:
+                                            log.debug(f"⚠️ [EMBED] Erro ao adicionar thumbnail: {e}")
+                                        except Exception as e:
+                                            log.warning(f"⚠️ [EMBED] Erro inesperado ao processar thumbnail: {e}")
                                     
                                     await channel.send(embed=embed)
                                     posted_channels.append(str(channel_id))
@@ -219,7 +352,19 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                             log.debug(f"✅ [POSTED] link={link} | channels={','.join(posted_channels)}")
 
                 except Exception as e:
-                    log.error(f"🔥 [SCANNER] Erro processando feed {link_url}: {e}")
+                    log_with_context(
+                        log,
+                        logging.ERROR,
+                        f"Erro processando feed: {e}",
+                        details={"url": link_url},
+                        event_type="SCAN_ERROR",
+                        exc_info=e
+                    )
+                    audit_logger.log(
+                        AuditEventType.SCAN_FAILED,
+                        severity=AuditSeverity.ERROR,
+                        details={"url": link_url, "error": str(e), "error_type": type(e).__name__}
+                    )
 
         save_history(history_list)
         cleaned = cleanup_state(http_state)
@@ -232,11 +377,23 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
         from core.stats import stats
         stats.scans_completed += 1
         stats.news_posted += sent_count
-        # stats.cache_hits_total += cache_hits
+        stats.cache_hits_total += cache_hits
         stats.last_scan_time = datetime.now()
 
+        # Audit log
+        audit_logger.log(
+            AuditEventType.SCAN_COMPLETED,
+            severity=AuditSeverity.INFO,
+            details={
+                "trigger": trigger,
+                "sent_count": sent_count,
+                "cache_hits": cache_hits,
+                "total_feeds": len(urls)
+            }
+        )
+
         # Save History & State
-        log.info(f"✅ [FINISHED] Varredura concluída. (Enviadas: {sent_count} | Trigger: {trigger})")
+        log.info(f"✅ [FINISHED] Varredura concluída. (Enviadas: {sent_count} | Cache hits: {cache_hits} | Trigger: {trigger})")
         
         # Persist Last Scan Time in http_state for status command (survives restart)
         http_state["_meta"] = {
