@@ -1,6 +1,10 @@
 import unittest
-from unittest.mock import MagicMock
-import discord
+import os
+import sys
+
+# Add project root to path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from core.scanner import _classify_entry_type
 
 class TestPlayerFix(unittest.TestCase):
@@ -11,17 +15,17 @@ class TestPlayerFix(unittest.TestCase):
         entry_type = "video"
         
         # Simulated logic from scanner.py
-        embed_url = None if is_media else link
+        embed_url = link
         
-        self.assertIsNone(embed_url, "Media embed should NOT have a URL to avoid suppressing native player")
+        self.assertEqual(embed_url, link, "Media embed SHOULD have a URL for a better UX")
         
         # Simulated thumbnail logic
         has_thumb = True
         thumbnail_to_set = None
-        if not is_media and has_thumb:
+        if has_thumb:
             thumbnail_to_set = "http://example.com/thumb.jpg"
             
-        self.assertIsNone(thumbnail_to_set, "Media embed should NOT have a thumbnail to avoid conflict")
+        self.assertEqual(thumbnail_to_set, "http://example.com/thumb.jpg", "Media embed SHOULD have a thumbnail if available")
 
     def test_news_embed_logic_simulation(self):
         link = "https://example.com/news/123"
