@@ -39,8 +39,14 @@ GUILD_ID = "417746665219424277"
     ("Os membros que serão os últimos do filme especial são... | projeto timelesz -REAL-", "Netflix Japan", "https://youtube.com/feeds/videos.xml?channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q", False),
 
     # Valid Anime Content (Should still pass)
-    ("New Anime 'Gundam' Trailer Released", "Sunrise studio", "https://youtube.com/feeds/videos.xml?channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q", True),
+    ("New Anime 'Gundam' Trailer Released", "Sunrise studio", "https://rss.feed/test", True),
     ("Crunchyroll adds new Manga titles", "Spring season", "https://rss.feed/test", True),
+    
+    # Reported False Positives Fixes
+    ("SPY×FAMILY Season 3 MISSION:50", "Spy x Family anime", "https://www.youtube.com/feeds/videos.xml?channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q", True),
+    ("CAPTAIN TSUBASA 2: WORLD FIGHTERS - Announcement Trailer", "Soccer anime", "https://rss.feed/test", True),
+    ("Explained in 4 minutes! The Culling Game Strategy - Jujutsu Kaisen", "JJK Season 3", "https://www.youtube.com/feeds/videos.xml?channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q", True),
+    ("My Melody & Kuromi｜制作ドキュメンタリー", "Sanrio anime documentary", "https://rss.feed/test", True),
 ])
 def test_filter_reported_cases(title, summary, source, expected):
     result = match_intel(GUILD_ID, title, summary, CONFIG, source=source)

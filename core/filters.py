@@ -18,19 +18,18 @@ BLACKLIST = [
     "tcg", "card game", "board game", "cosplay",
 
     # esportes / entretenimento genérico (ruído)
-    "football", "soccer", "futebol", "fifa", "uefa",
+    "futebol", "fifa", "uefa",
     "champions league", "premier league", "la liga", "bundesliga",
     "libertadores", "world cup", "copa do mundo",
-    "baseball", "basketball", "volleyball", "wbc", "mlb", "nba", "tennis",
-    "basquete", "vôlei", "beisebol", "野球", "ベースボール", "サッカー",
+    "vôlei", "beisebol", "野球", "ベースボール", "サッカー",
     "world baseball classic", "clássico mundial de beisebol", "clássico mundial",
     "samurai japan", "serv japan", "侍ジャパン", "ワールドベースボールクラシック",
     "world baseball", "baseball classic", "beisebol clássico",
 
     # TV genérica / Reality / Séries não-anime (genérico)
     "reality show", "reality tv", "variety show",
-    "live action series", "behind the scenes", "set tour",
-    "season finale", "now playing", "documentary", "documentário",
+    "live action series", "set tour",
+    "season finale", "now playing",
     "twice", "timelesz", "k-pop", "j-pop",
     "grwm", "get ready with me", "green room", "tour",
     "this is i", "este sou eu", "o namorado", "the boyfriend",
@@ -47,6 +46,10 @@ STRICT_ANIME_KEYWORDS = [
     # marcas/estúdios/distribuidores (âncoras fortes)
     "crunchyroll", "aniplex", "kadokawa", "toho animation", "kyoani", "mappa",
     "ufotable", "wit studio", "bones", "production i.g", "science saru",
+
+    # títulos/padrões comuns que confirmam anime
+    "spy x family", "spyxfamily", "spy×family", "spy-family", "jujutsu kaisen", "shingeki", "one piece", "naruto",
+    "pv", "key visual", "teaser trailer",
 ]
 
 # Hints para fontes "mistas" (YouTube genérico / streaming / agregadores)
@@ -67,8 +70,6 @@ UNTRUSTED_SOURCE_HINTS = [
 UNTRUSTED_BLACKLIST = [
     "official teaser",
     "official trailer",
-    "season ",
-    " part ",
     "bridgerton",
     "fast and furious",
     "hollywood drift",
