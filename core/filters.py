@@ -22,12 +22,14 @@ BLACKLIST = [
     "champions league", "premier league", "la liga", "bundesliga",
     "libertadores", "world cup", "copa do mundo",
     "baseball", "basketball", "volleyball", "wbc", "mlb", "nba", "tennis",
-    "basquete", "vôlei", "beisebol",
+    "basquete", "vôlei", "beisebol", "野球", "ベースボール", "サッカー",
+    "world baseball classic",
 
     # TV genérica / Reality / Séries não-anime (genérico)
     "reality show", "reality tv", "variety show",
-    "live action series",
-    "season finale", "now playing",
+    "live action series", "behind the scenes", "set tour",
+    "season finale", "now playing", "documentary", "documentário",
+    "twice", "timelesz", "k-pop", "j-pop",
 ]
 
 # Termos que GARANTEM que o conteúdo é "Anime-related"
@@ -35,7 +37,7 @@ STRICT_ANIME_KEYWORDS = [
     "anime", "animes", "manga", "mangas", "mangá", "mangás",
     "light novel", "visual novel", "otaku",
     "gundam", "ghibli", "shonen", "seinen", "shoujo", "josei",
-    "isekai", "mecha", "tokusatsu", "chibi", "kawaii", "kaiju",
+    "isekai", "mecha", "chibi", "kawaii", "kaiju",
 
     # marcas/estúdios/distribuidores (âncoras fortes)
     "crunchyroll", "aniplex", "kadokawa", "toho animation", "kyoani", "mappa",
@@ -45,12 +47,14 @@ STRICT_ANIME_KEYWORDS = [
 # Hints para fontes "mistas" (YouTube genérico / streaming / agregadores)
 # IMPORTANTE: usar pedaços do URL para bater independente de http/https e www.
 UNTRUSTED_SOURCE_HINTS = [
-    "youtube.com/feeds/videos.xml?user=ignentertainment",
-    "youtube.com/feeds/videos.xml?user=netflix",
-    "youtube.com/feeds/videos.xml?user=netflixjp",
-    "channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q", # Netflix Japan (ID)
-    "channel_id=UClp1Q_Ui80Wf69A6YI67S3w", # Netflix (ID)
-    # Se você quiser incluir outros agregadores aqui, faça por domínio/trecho do feed:
+    "user=ignentertainment",
+    "user=netflix",
+    "user=netflixjp",
+    "channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q", # Netflix Japan
+    "channel_id=UClp1Q_Ui80Wf69A6YI67S3w", # Netflix
+    "channel_id=UC0-5Baz14QkUcJ6fAYAkbAQ", # Sato Company
+    "channel_id=UCivtAzCENYI1jb6Clxydvdw", # TokuSato
+    "channel_id=UCTOaq4HfNMstuJfZxHszxgw", # Sato Anime
 ]
 
 # Bloqueios adicionais SOMENTE quando a fonte é "untrusted"
@@ -64,6 +68,11 @@ UNTRUSTED_BLACKLIST = [
     "fast and furious",
     "hollywood drift",
     "netflix series",
+    "netflix japan",
+    "netflix reality",
+    "kokuho",
+    "dollhouse",
+    "the boyfriend",
 ]
 
 CAT_MAP = {
@@ -135,7 +144,7 @@ def _is_untrusted_source(source: str) -> bool:
         return False
 
     # Bate por hints (trechos do URL do feed)
-    if any(h in source_l for h in UNTRUSTED_SOURCE_HINTS):
+    if any(h.lower() in source_l for h in UNTRUSTED_SOURCE_HINTS):
         return True
 
     # Heurística extra: YouTube + certas palavras-chave no próprio URL do feed
