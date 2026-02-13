@@ -17,13 +17,15 @@ BLACKLIST = [
     "t-shirt", "apparel", "hoodie", "jacket", "clothing", "fashion",
     "tcg", "card game", "board game", "cosplay",
 
-    # esportes / futebol (ruído)
+    # esportes / entretenimento genérico (ruído)
     "football", "soccer", "futebol", "fifa", "uefa",
     "champions league", "premier league", "la liga", "bundesliga",
     "libertadores", "world cup", "copa do mundo",
+    "baseball", "basketball", "volleyball", "wbc", "mlb", "nba", "tennis",
+    "basquete", "vôlei", "beisebol",
 
     # TV genérica / Reality / Séries não-anime (genérico)
-    "reality show", "reality tv",
+    "reality show", "reality tv", "variety show",
     "live action series",
     "season finale", "now playing",
 ]
@@ -46,8 +48,9 @@ UNTRUSTED_SOURCE_HINTS = [
     "youtube.com/feeds/videos.xml?user=ignentertainment",
     "youtube.com/feeds/videos.xml?user=netflix",
     "youtube.com/feeds/videos.xml?user=netflixjp",
+    "channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q", # Netflix Japan (ID)
+    "channel_id=UClp1Q_Ui80Wf69A6YI67S3w", # Netflix (ID)
     # Se você quiser incluir outros agregadores aqui, faça por domínio/trecho do feed:
-    # "example.com/feed",
 ]
 
 # Bloqueios adicionais SOMENTE quando a fonte é "untrusted"
@@ -166,6 +169,9 @@ def match_intel(
     content = f"{clean_html(title)} {clean_html(summary)}".lower()
 
     is_untrusted = _is_untrusted_source(source)
+    title_clean = clean_html(title).lower()
+    summary_clean = clean_html(summary).lower()
+    content = f"{title_clean} {summary_clean}"
 
     # 1) Blacklist global (sempre bloqueia)
     blocked_word = _contains_any(content, BLACKLIST)
@@ -185,12 +191,17 @@ def match_intel(
             )
             return False
 
-    # 3) "todos" = tudo RELACIONADO A ANIME (exige termo estrito)
+    # 3) "todos" = tudo RELACIONADO A ANIME
     if "todos" in filters:
-        strict_match = _contains_any(content, STRICT_ANIME_KEYWORDS)
+        # Para fontes untrusted, exigimos que o termo estrito esteja no TÍTULO
+        # Isso evita falsos positivos por conta de boilerplates no resumo/descrição.
+        check_text = title_clean if is_untrusted else content
+        strict_match = _contains_any(check_text, STRICT_ANIME_KEYWORDS)
+        
         if not strict_match:
             log.debug(
-                f"❌ [IGNORED] Guild: {guild_id} | TODOS ativo, mas sem termo estrito | Título: {title[:50]}..."
+                f"❌ [IGNORED] Guild: {guild_id} | {'(UNTRUSTED)' if is_untrusted else 'TODOS'} "
+                f"Sem termo estrito no {'TÍTULO' if is_untrusted else 'conteúdo'} | Título: {title[:50]}..."
             )
             return False
 
@@ -208,10 +219,13 @@ def match_intel(
             # Regra: categorias temáticas precisam ter ao menos 1 termo estrito
             # (inclui news para evitar "announcement" de coisas fora do universo anime)
             if f in ["anime", "news", "games", "filmes", "music", "musica"]:
-                strict_match = _contains_any(content, STRICT_ANIME_KEYWORDS)
+                check_text = title_clean if is_untrusted else content
+                strict_match = _contains_any(check_text, STRICT_ANIME_KEYWORDS)
+                
                 if not strict_match:
                     log.debug(
-                        f"⚠️ [FILTER-{f.upper()}] Ignorado pois não possui termo estrito de anime. "
+                        f"⚠️ [FILTER-{f.upper()}] Ignorado pois não possui termo estrito no "
+                        f"{'TÍTULO' if is_untrusted else 'conteúdo'}. "
                         f"Termo original: '{matched_kw}' | Título: {title[:50]}..."
                     )
                     continue
