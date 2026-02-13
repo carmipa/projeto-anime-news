@@ -307,9 +307,19 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                                 color = _get_embed_color(entry_type)
 
                                 # Monta embed padrão com cor baseada no tipo
+                                # Para vídeos, adiciona indicador visual no título ou descrição
+                                embed_title = t_translated[:256]
+                                if is_media and entry_type == "video":
+                                    embed_title = f"▶️ {embed_title}"
+                                
+                                embed_description = s_translated[:2000]
+                                if is_media:
+                                    # Para vídeos, mantém descrição completa e link visível
+                                    embed_description = f"{s_translated[:1900]}\n\n🔗 **Assistir:** {link}"
+                                
                                 embed = discord.Embed(
-                                    title=t_translated[:256],
-                                    description=s_translated[:2000] if not is_media else f"{s_translated[:1900]}\n\n🔗 {link}",
+                                    title=embed_title,
+                                    description=embed_description,
                                     url=link,
                                     color=color,
                                     timestamp=datetime.now()
@@ -336,14 +346,18 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                                     except Exception as e:
                                         log.warning(f"⚠️ [EMBED] Erro inesperado ao processar thumbnail: {e}")
 
-                                # Para mídias (YouTube/Twitch), mantém o botão de assistir
+                                # Para mídias (YouTube/Twitch), envia link no content para ativar preview do player
                                 if is_media:
+                                    # Envia o link do YouTube no content para que o Discord crie o preview automático com player
+                                    # O embed mantém as informações e cores, e o link no content ativa o player embutido
                                     view = WatchView(link)
-                                    await channel.send(embed=embed, view=view)
+                                    log.debug(f"🎬 [MEDIA] Enviando vídeo com player embutido: {link[:60]}...")
+                                    await channel.send(content=link, embed=embed, view=view)
                                 else:
                                     await channel.send(embed=embed)
 
                                 posted_channels.append(str(channel_id))
+                                log.debug(f"✅ [POSTED] Tipo: {entry_type} | Cor: {color} | Mídia: {is_media} | Link: {link[:60]}...")
                                 
                             except Exception as e:
                                 log.error(f"❌ [DISCORD] Falha ao enviar no canal {channel_id}: {e}")
