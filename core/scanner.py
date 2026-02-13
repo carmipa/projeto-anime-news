@@ -115,6 +115,46 @@ def _get_embed_color(entry_type: str) -> discord.Color:
     # news / default
     return discord.Color.from_rgb(255, 0, 32)
 
+
+def _extract_youtube_id(url: str) -> str:
+    """Extrai o ID do vídeo de uma URL do YouTube."""
+    if not url:
+        return ""
+    
+    # Formatos comuns:
+    # watch?v=ID
+    # shorts/ID
+    # youtu.be/ID
+    parsed = urlparse(url)
+    if parsed.netloc in ("youtube.com", "www.youtube.com"):
+        if "/shorts/" in parsed.path:
+            return parsed.path.split("/shorts/")[1].split("?")[0]
+        # query v=ID
+        from urllib.parse import parse_qs
+        qs = parse_qs(parsed.query)
+        if "v" in qs:
+            return qs["v"][0]
+    elif parsed.netloc == "youtu.be":
+        return parsed.path.strip("/")
+    
+    return ""
+
+
+def _normalize_youtube_url(url: str) -> str:
+    """Normaliza URLs do YouTube para o formato watch?v=ID."""
+    yid = _extract_youtube_id(url)
+    if yid:
+        return f"https://www.youtube.com/watch?v={yid}"
+    return url
+
+
+def _get_youtube_thumbnail(url: str) -> str:
+    """Gera a URL da thumbnail HQ do YouTube."""
+    yid = _extract_youtube_id(url)
+    if yid:
+        return f"https://img.youtube.com/vi/{yid}/hqdefault.jpg"
+    return ""
+
 def load_sources() -> List[str]:
     """Carrega todas as URLs de sources.json em uma lista plana."""
     data = load_json_safe(p("sources.json"), {})
@@ -259,6 +299,10 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                         link = getattr(entry, "link", "")
                         title = getattr(entry, "title", "No Title")
                         
+                        # Normalize YouTube URLs (Shorts -> Watch para melhor preview)
+                        if "youtube.com" in link or "youtu.be" in link:
+                            link = _normalize_youtube_url(link)
+                        
                         if not link or link in history_set:
                             if link in history_set:
                                 # Log skipped item at DEBUG level (or INFO if debugging)
@@ -346,6 +390,11 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                                         log.debug(f"⚠️ [EMBED] Erro ao adicionar thumbnail: {e}")
                                     except Exception as e:
                                         log.warning(f"⚠️ [EMBED] Erro inesperado ao processar thumbnail: {e}")
+                                elif is_media and ("youtube.com" in link or "youtu.be" in link):
+                                    # Thumbnail manual para YouTube (garante que o embed customizado fique bonito)
+                                    yt_thumb = _get_youtube_thumbnail(link)
+                                    if yt_thumb:
+                                        embed.set_thumbnail(url=yt_thumb)
 
                                 # Para mídias (YouTube/Twitch), envia link no content para ativar preview do player
                                 if is_media:
