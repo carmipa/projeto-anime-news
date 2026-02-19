@@ -32,7 +32,9 @@ BLACKLIST = [
     "season finale", "now playing",
     "twice", "timelesz", "k-pop", "j-pop",
     "grwm", "get ready with me", "green room", "tour",
-    "this is i", "este sou eu", "o namorado", "the boyfriend",
+    "this is i", "este sou eu", "o namorado", "the boyfriend", "namorado mensal",
+    "diamond truth", "peaky blinders", "love is blind", "casamento às cegas",
+    "documentary", "documentário", "docuseries", "série documental",
     "netflix japan", "netflix japão", "netflix série", "netflix series",
 ]
 
