@@ -7,6 +7,7 @@ from core.filters import match_intel
     ("Trailer de Peaky Blinders: O Imortal - Netflix", "Descrição genérica", "https://www.youtube.com/feeds/videos.xml?channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q", False),
     ("Trailer de 'Namorado Mensal' - Netflix", "Descrição genérica", "https://www.youtube.com/feeds/videos.xml?channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q", False),
     ("Trailer da série de documentários Netflix 'DIAMOND TRUTH' - Netflix", "Descrição genérica", "https://www.youtube.com/feeds/videos.xml?channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q", False),
+    ("Apresentando Ronnie Hawkins, o personagem principal de Ronnie the Hawk - Netflix", "Netflix Japan", "https://www.youtube.com/feeds/videos.xml?channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q", False),
     
     # Control cases (Should PASS)
     ("Trailer de Gundam Requiem for Vengeance - Netflix", "Anime mecha legal", "https://www.youtube.com/feeds/videos.xml?channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q", True),
