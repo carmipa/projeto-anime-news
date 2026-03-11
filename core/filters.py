@@ -66,6 +66,7 @@ UNTRUSTED_SOURCE_HINTS = [
     "user=netflixjp",
     "channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q", # Netflix Japan
     "channel_id=UClp1Q_Ui80Wf69A6YI67S3w", # Netflix
+    "channel_id=UCc1l5mTmAv2GC_PXrBpqyKQ", # Netflix Brasil
     "channel_id=UC0-5Baz14QkUcJ6fAYAkbAQ", # Sato Company
     "channel_id=UCivtAzCENYI1jb6Clxydvdw", # TokuSato
     "channel_id=UCTOaq4HfNMstuJfZxHszxgw", # Sato Anime
@@ -105,6 +106,9 @@ UNTRUSTED_BLACKLIST = [
     "ronnie hawkins",
     "ロニー・ザ・ホーク",
     "ロニー・ホーキン",
+    # Netflix Brasil: promo/variedade (não notícia de anime)
+    "pepita",
+    "o povo fala",
 ]
 
 CAT_MAP = {

@@ -8,6 +8,9 @@ from core.filters import match_intel
     ("Trailer de 'Namorado Mensal' - Netflix", "Descrição genérica", "https://www.youtube.com/feeds/videos.xml?channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q", False),
     ("Trailer da série de documentários Netflix 'DIAMOND TRUTH' - Netflix", "Descrição genérica", "https://www.youtube.com/feeds/videos.xml?channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q", False),
     ("Apresentando Ronnie Hawkins, o personagem principal de Ronnie the Hawk - Netflix", "Netflix Japan", "https://www.youtube.com/feeds/videos.xml?channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q", False),
+    # Netflix Brasil: promo/variedade (não notícia de anime)
+    ("Pepita foi encontrar a Laboon no Rio de Janeiro!", "Netflix Brasil", "https://www.youtube.com/feeds/videos.xml?channel_id=UCc1l5mTmAv2GC_PXrBpqyKQ", False),
+    ("O POVO FALA SOBRE ONE PIECE!", "Netflix Brasil", "https://www.youtube.com/feeds/videos.xml?channel_id=UCc1l5mTmAv2GC_PXrBpqyKQ", False),
     
     # Control cases (Should PASS)
     ("Trailer de Gundam Requiem for Vengeance - Netflix", "Anime mecha legal", "https://www.youtube.com/feeds/videos.xml?channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q", True),
