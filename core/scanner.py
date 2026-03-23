@@ -295,7 +295,7 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                         continue
 
                     # 3. Process Entries (Newest first usually)
-                    for entry in feed.entries[:10]: # Check top 10
+                    for entry in feed.entries[:30]: # Verifica últimos 30 posts (evita perder em canais ativos)
                         link = getattr(entry, "link", "")
                         title = getattr(entry, "title", "No Title")
                         

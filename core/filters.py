@@ -26,10 +26,13 @@ BLACKLIST = [
     "samurai japan", "serv japan", "侍ジャパン", "ワールドベースボールクラシック",
     "world baseball", "baseball classic", "beisebol clássico",
 
-    # TV genérica / Reality / Séries não-anime (genérico)
+    # TV genérica / Reality / Séries não-anime / Live Action / Entrevistas
     "reality show", "reality tv", "variety show",
-    "live action series", "set tour",
-    "season finale", "now playing",
+    "live action series", "set tour", "live action", "live-action", "ação ao vivo",
+    "elenco", "cast", "reactions", "reações", "interview", "entrevista", "podcast",
+    "behind the scenes", "bastidores", "making of", "still watching netflix",
+    "the anime effect", "gameplay trailer", "overview trailer", "gameplay overview",
+    "season finale", "now playing", "ator", "atriz", "actor", "actress",
     "twice", "timelesz", "k-pop", "j-pop",
     "grwm", "get ready with me", "green room", "tour",
     "this is i", "este sou eu", "o namorado", "the boyfriend", "namorado mensal",
@@ -65,6 +68,14 @@ UNTRUSTED_SOURCE_HINTS = [
     "channel_id=UC0-5Baz14QkUcJ6fAYAkbAQ", # Sato Company
     "channel_id=UCivtAzCENYI1jb6Clxydvdw", # TokuSato
     "channel_id=UCTOaq4HfNMstuJfZxHszxgw", # Sato Anime
+    
+    # Canais de games / mistos
+    "channel_id=UCY5fcqgSrQItPAX_Z5Frmwg",
+    "channel_id=UCB_BuOpGioQ7EVKm2F21dnw",
+    "channel_id=UCWJ5MfdQZ6jXbF5gYuSAf5Q",
+    "channel_id=UC6pGDc4bFGD1_36IKv3FnYg",
+    "channel_id=UCqly9F4Fr_jf2Y1Cy5hacRg",
+    "gametrailers", "ign",
 ]
 
 # Bloqueios adicionais SOMENTE quando a fonte é "untrusted"
@@ -109,8 +120,8 @@ CAT_MAP = {
         # "netflix" removido de propósito: Netflix só passa se tiver termo estrito.
     ],
     "news": [
-        "news", "update", "announcement", "report", "interview",
-        "production", "cast", "staff", "studio"
+        "news", "update", "announcement", "report",
+        "production", "studio"
     ],
     "music": [
         "music", "ost", "soundtrack", "opening", "ending",
@@ -125,7 +136,7 @@ CAT_MAP = {
         "mobile game", "visual novel"
     ],
     "filmes": [
-        "film", "movie", "live-action", "cinema", "theatrical"
+        "film", "movie", "cinema", "theatrical", "anime film", "anime movie"
     ]
 }
 
