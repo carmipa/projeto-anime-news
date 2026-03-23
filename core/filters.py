@@ -1,5 +1,9 @@
 """
-Filters module - News filtering and categorization logic.
+Filters module - Filtragem de notícias para garantir APENAS conteúdo de anime.
+
+Objetivo: só aprovar itens que sejam claramente notícias/novidades de anime, manga,
+estúdios ou distribuidoras de anime. Bloquear séries live-action, reality, esportes,
+e qualquer conteúdo que não seja do universo anime.
 """
 from typing import Dict, List, Any
 from utils.html import clean_html
@@ -65,6 +69,7 @@ UNTRUSTED_SOURCE_HINTS = [
     "user=netflixjp",
     "channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q", # Netflix Japan
     "channel_id=UClp1Q_Ui80Wf69A6YI67S3w", # Netflix
+    "channel_id=UCc1l5mTmAv2GC_PXrBpqyKQ", # Netflix Brasil
     "channel_id=UC0-5Baz14QkUcJ6fAYAkbAQ", # Sato Company
     "channel_id=UCivtAzCENYI1jb6Clxydvdw", # TokuSato
     "channel_id=UCTOaq4HfNMstuJfZxHszxgw", # Sato Anime
@@ -107,6 +112,14 @@ UNTRUSTED_BLACKLIST = [
     "circumstances",
     "情事",
     "事情",
+    # Ronnie the Hawk e similares (live-action Netflix Japan)
+    "ronnie the hawk",
+    "ronnie hawkins",
+    "ロニー・ザ・ホーク",
+    "ロニー・ホーキン",
+    # Netflix Brasil: promo/variedade (não notícia de anime)
+    "pepita",
+    "o povo fala",
 ]
 
 CAT_MAP = {
@@ -214,7 +227,11 @@ def match_intel(
     config: Dict[str, Any],
     source: str = ""
 ) -> bool:
-    """Decide se notícia deve ir para a guild."""
+    """
+    Decide se a notícia deve ser publicada na guild.
+    Só retorna True se o conteúdo for reconhecidamente de anime/manga (termo estrito).
+    Notícias que não forem de anime são bloqueadas (blacklist ou falta de termo estrito).
+    """
     g = config.get(str(guild_id), {})
     filters = g.get("filters", [])
 
@@ -271,9 +288,9 @@ def match_intel(
         matched_kw = _contains_any(content, kws)
 
         if matched_kw:
-            # Regra: categorias temáticas precisam ter ao menos 1 termo estrito
-            # (inclui news para evitar "announcement" de coisas fora do universo anime)
-            if f in ["anime", "news", "games", "filmes", "music", "musica"]:
+            # Regra: todas as categorias precisam ter ao menos 1 termo estrito de anime
+            # (garante que só passem notícias de anime, nunca conteúdo genérico)
+            if f in ["anime", "news", "games", "filmes", "music", "musica", "gunpla"]:
                 check_text = title_clean if is_untrusted else content
                 strict_match = _contains_any(check_text, STRICT_ANIME_KEYWORDS)
                 
