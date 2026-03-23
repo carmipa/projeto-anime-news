@@ -234,6 +234,9 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
         async with aiohttp.ClientSession() as session:
             for link_url in urls:
                 try:
+                    # Pequena pausa para garantir que o event loop do Discord respire e não dê timeout
+                    await asyncio.sleep(0.1)
+                    
                     # Validação de segurança da URL
                     try:
                         validated_url = validate_url(link_url)
@@ -278,9 +281,9 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                         )
                         continue
 
-                    # 2. Parse Feed (com retry)
+                    # 2. Parse Feed (com retry e em thread separada para não travar o loop do Discord)
                     async def parse_feed():
-                        feed = feedparser.parse(content)
+                        feed = await asyncio.to_thread(feedparser.parse, content)
                         if feed.bozo:
                             raise FeedParseError(f"Erro parsing {validated_url}: {feed.bozo_exception}")
                         return feed
