@@ -30,13 +30,12 @@ BLACKLIST = [
     "samurai japan", "serv japan", "侍ジャパン", "ワールドベースボールクラシック",
     "world baseball", "baseball classic", "beisebol clássico",
 
-    # TV genérica / Reality / Séries não-anime / Live Action / Entrevistas
+    # TV genérica / Reality / Séries não-anime / Live Action
     "reality show", "reality tv", "variety show",
-    "live action series", "set tour", "live action", "live-action", "ação ao vivo",
-    "elenco", "cast", "reactions", "reações", "interview", "entrevista", "podcast",
-    "behind the scenes", "bastidores", "making of", "still watching netflix",
+    "live action series", "live action", "live-action", "ação ao vivo",
+    "still watching netflix",
     "the anime effect", "gameplay trailer", "overview trailer", "gameplay overview",
-    "season finale", "now playing", "ator", "atriz", "actor", "actress",
+    "season finale",
     "twice", "timelesz", "k-pop", "j-pop",
     "grwm", "get ready with me", "green room", "tour",
     "this is i", "este sou eu", "o namorado", "the boyfriend", "namorado mensal",
@@ -86,21 +85,12 @@ UNTRUSTED_SOURCE_HINTS = [
 # Bloqueios adicionais SOMENTE quando a fonte é "untrusted"
 # Aqui entram sinais de trailer/teaser de série/filme live-action etc.
 UNTRUSTED_BLACKLIST = [
-    "official teaser",
-    "official trailer",
-    "bridgerton",
-    "fast and furious",
-    "hollywood drift",
-    "netflix series",
-    "netflix japan",
-    "netflix japão",
-    "netflix reality",
     "kokuho",
     "dollhouse",
     "the boyfriend",
     "o namorado",
     "this is i",
-    "este sou eu",
+    "este som eu",
     "green room",
     "grwm",
     "set tour",
@@ -112,6 +102,10 @@ UNTRUSTED_BLACKLIST = [
     "circumstances",
     "情事",
     "事情",
+    # Termos de ator/elenco (mover da global para cá)
+    "cast", "elenco", "actor", "actor", "ator", "atriz", "actress",
+    "interview", "entrevista", "podcast", "behind the scenes", "bastidores", "making of",
+    "reactions", "reações", "now playing",
     # Ronnie the Hawk e similares (live-action Netflix Japan)
     "ronnie the hawk",
     "ronnie hawkins",
