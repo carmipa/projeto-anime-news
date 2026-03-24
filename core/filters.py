@@ -57,7 +57,7 @@ STRICT_ANIME_KEYWORDS = [
 
     # títulos/padrões comuns que confirmam anime
     "spy x family", "spyxfamily", "spy×family", "spy-family", "jujutsu kaisen", "shingeki", "one piece", "naruto",
-    "pv", "key visual", "teaser trailer",
+    "pv", "key visual",
 ]
 
 # Hints para fontes "mistas" (YouTube genérico / streaming / agregadores)
