@@ -359,11 +359,30 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                                 if is_media and entry_type == "video":
                                     embed_title = f"▶️ {embed_title}"
                                 
+                                from datetime import timezone
+                                pub_dt = None
+                                try:
+                                    st = getattr(entry, "published_parsed", None) or getattr(entry, "updated_parsed", None)
+                                    if st:
+                                        # st is struct_time (year, month, day, hour, min, sec...)
+                                        pub_dt = datetime(*st[:6], tzinfo=timezone.utc)
+                                except Exception:
+                                    pass
+
+                                embed_ts = pub_dt if pub_dt else datetime.now()
+                                if getattr(embed_ts, 'tzinfo', None) is None:
+                                    embed_ts = embed_ts.replace(tzinfo=timezone.utc)
+                                
+                                str_date = pub_dt.strftime("%d/%m/%Y %H:%M") if pub_dt else datetime.now().strftime("%d/%m/%Y %H:%M")
+                                postado_str = f"🕒 **Postado em:** {str_date}"
+
                                 embed_description = s_translated[:2000]
                                 if is_media:
                                     # Para vídeos, mantém descrição completa e link visível
-                                    embed_description = f"{s_translated[:1900]}\n\n🔗 **Assistir:** {link}"
-                                
+                                    embed_description = f"{s_translated[:1800]}\n\n🔗 **Assistir:** {link}\n\n{postado_str}"
+                                else:
+                                    embed_description = f"{s_translated[:1900]}\n\n{postado_str}"
+
                                 embed_url = None if is_media else link
 
                                 embed = discord.Embed(
@@ -371,7 +390,7 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                                     description=embed_description,
                                     url=embed_url,
                                     color=color,
-                                    timestamp=datetime.now()
+                                    timestamp=embed_ts
                                 )
                                 
                                 author_name = t.get('embed.author', lang=target_lang)
@@ -399,16 +418,32 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                                     if yt_thumb:
                                         embed.set_thumbnail(url=yt_thumb)
 
+                                from urllib.parse import quote
+                                view = discord.ui.View(timeout=None)
+                                
+                                view.add_item(discord.ui.Button(label="Leia Mais", url=link, emoji="📖", style=discord.ButtonStyle.link))
+                                
+                                wa_text = quote(f"{t_translated}\n\n{link}")
+                                view.add_item(discord.ui.Button(label="WhatsApp", url=f"https://api.whatsapp.com/send?text={wa_text}", emoji="🟢", style=discord.ButtonStyle.link))
+                                
+                                email_subj = quote(t_translated)
+                                email_body = quote(f"Confira esta notícia:\n\n{link}")
+                                view.add_item(discord.ui.Button(label="E-mail", url=f"mailto:?subject={email_subj}&body={email_body}", emoji="✉️", style=discord.ButtonStyle.link))
+
                                 # Para mídias (YouTube/Twitch), envia apenas título + link no content para ativar preview do player nativo
                                 if is_media:
                                     # Para que o Discord crie o preview automático com player (unfurl), 
                                     # NÃO podemos enviar um embed customizado na mesma mensagem.
-                                    view = WatchView(link)
-                                    content = f"**{t_translated}**\n{link}"
+                                    media_view = discord.ui.View(timeout=None)
+                                    media_view.add_item(discord.ui.Button(label="Assistir Agora / Watch Now", url=link, emoji="▶️", style=discord.ButtonStyle.link))
+                                    media_view.add_item(discord.ui.Button(label="WhatsApp", url=f"https://api.whatsapp.com/send?text={wa_text}", emoji="🟢", style=discord.ButtonStyle.link))
+                                    media_view.add_item(discord.ui.Button(label="E-mail", url=f"mailto:?subject={email_subj}&body={email_body}", emoji="✉️", style=discord.ButtonStyle.link))
+                                    
+                                    content = f"**{t_translated}**\n{link}\n\n{postado_str}"
                                     log.debug(f"🎬 [MEDIA] Enviando vídeo com player nativo: {link[:60]}...")
-                                    await channel.send(content=content, view=view)
+                                    await channel.send(content=content, view=media_view)
                                 else:
-                                    await channel.send(embed=embed)
+                                    await channel.send(embed=embed, view=view)
 
                                 posted_channels.append(str(channel_id))
                                 log.debug(f"✅ [POSTED] Tipo: {entry_type} | Cor: {color} | Mídia: {is_media} | Link: {link[:60]}...")
