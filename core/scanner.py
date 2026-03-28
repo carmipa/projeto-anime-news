@@ -116,6 +116,28 @@ def _get_embed_color(entry_type: str) -> discord.Color:
     return discord.Color.from_rgb(255, 0, 32)
 
 
+def _format_publication_line(pub_dt: datetime | None) -> str:
+    """
+    Data/hora da publicação do feed: texto legível + timestamps do Discord
+    (<t:unix:F> data/hora no fuso do usuário, <t:unix:R> relativo tipo 'há 2 horas').
+    """
+    from datetime import timezone
+
+    now = datetime.now(timezone.utc)
+    if pub_dt is None:
+        dt = now
+    else:
+        dt = pub_dt
+        if getattr(dt, "tzinfo", None) is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+    unix_ts = int(dt.timestamp())
+    label = dt.strftime("%d/%m/%Y %H:%M")
+    return (
+        f"🕒 **Postado em:** {label} (UTC) "
+        f"· <t:{unix_ts}:F> · <t:{unix_ts}:R>"
+    )
+
+
 def _extract_youtube_id(url: str) -> str:
     """Extrai o ID do vídeo de uma URL do YouTube."""
     if not url:
@@ -373,8 +395,7 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                                 if getattr(embed_ts, 'tzinfo', None) is None:
                                     embed_ts = embed_ts.replace(tzinfo=timezone.utc)
                                 
-                                str_date = pub_dt.strftime("%d/%m/%Y %H:%M") if pub_dt else datetime.now().strftime("%d/%m/%Y %H:%M")
-                                postado_str = f"🕒 **Postado em:** {str_date}"
+                                postado_str = _format_publication_line(pub_dt)
 
                                 embed_description = s_translated[:2000]
                                 if is_media:
@@ -426,6 +447,9 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                                 wa_text = quote(f"{t_translated}\n\n{link}")
                                 view.add_item(discord.ui.Button(label="WhatsApp", url=f"https://api.whatsapp.com/send?text={wa_text}", emoji="🟢", style=discord.ButtonStyle.link))
                                 
+                                x_share = f"https://twitter.com/intent/tweet?text={quote(t_translated[:220])}&url={quote(link)}"
+                                view.add_item(discord.ui.Button(label="Compartilhar / X", url=x_share, emoji="📣", style=discord.ButtonStyle.link))
+                                
                                 email_subj = quote(t_translated)
                                 email_body = quote(f"Confira esta notícia:\n\n{link}")
                                 view.add_item(discord.ui.Button(label="E-mail", url=f"mailto:?subject={email_subj}&body={email_body}", emoji="✉️", style=discord.ButtonStyle.link))
@@ -437,6 +461,7 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                                     media_view = discord.ui.View(timeout=None)
                                     media_view.add_item(discord.ui.Button(label="Assistir Agora / Watch Now", url=link, emoji="▶️", style=discord.ButtonStyle.link))
                                     media_view.add_item(discord.ui.Button(label="WhatsApp", url=f"https://api.whatsapp.com/send?text={wa_text}", emoji="🟢", style=discord.ButtonStyle.link))
+                                    media_view.add_item(discord.ui.Button(label="Compartilhar / X", url=x_share, emoji="📣", style=discord.ButtonStyle.link))
                                     media_view.add_item(discord.ui.Button(label="E-mail", url=f"mailto:?subject={email_subj}&body={email_body}", emoji="✉️", style=discord.ButtonStyle.link))
                                     
                                     content = f"**{t_translated}**\n{link}\n\n{postado_str}"
