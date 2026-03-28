@@ -56,6 +56,12 @@ class FilterDashboard(discord.ui.View):
             return bool(interaction.user.guild_permissions.administrator)
         except Exception:
             return False
+
+    def _guild_matches(self, interaction: discord.Interaction) -> bool:
+        """Evita uso de botões de painel de outro servidor (custom_id reutilizado)."""
+        if not interaction.guild:
+            return False
+        return str(interaction.guild.id) == self.guild_id
     
     def _rebuild(self) -> None:
         """Reconstrói botões conforme filtros ativos."""
@@ -107,6 +113,12 @@ class FilterDashboard(discord.ui.View):
     
     async def _toggle_callback(self, interaction: discord.Interaction):
         """Liga/desliga um filtro específico."""
+        if not self._guild_matches(interaction):
+            await interaction.response.send_message(
+                "❌ Este painel não pertence a este servidor.",
+                ephemeral=True
+            )
+            return
         if not self._is_admin(interaction):
             await interaction.response.send_message(
                 "❌ Apenas administradores podem alterar filtros.",
@@ -138,6 +150,12 @@ class FilterDashboard(discord.ui.View):
     
     async def _show_callback(self, interaction: discord.Interaction):
         """Mostra filtros ativos."""
+        if not self._guild_matches(interaction):
+            await interaction.response.send_message(
+                "❌ Este painel não pertence a este servidor.",
+                ephemeral=True
+            )
+            return
         current = self._filters()
         if not current:
             await interaction.response.send_message(
@@ -152,6 +170,12 @@ class FilterDashboard(discord.ui.View):
     
     async def _reset_callback(self, interaction: discord.Interaction):
         """Reseta todos os filtros."""
+        if not self._guild_matches(interaction):
+            await interaction.response.send_message(
+                "❌ Este painel não pertence a este servidor.",
+                ephemeral=True
+            )
+            return
         if not self._is_admin(interaction):
             await interaction.response.send_message(
                 "❌ Apenas administradores podem resetar filtros.",

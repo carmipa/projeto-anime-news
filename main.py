@@ -10,7 +10,7 @@ import os
 from logging.handlers import RotatingFileHandler
 from discord.ext import commands
 
-from settings import TOKEN, COMMAND_PREFIX
+from settings import TOKEN, COMMAND_PREFIX, WEB_ENABLED, WEB_HOST, WEB_PORT
 from utils.logger import log, setup_logger # Adjusted to reuse existing logger if possible, but implementing rotation manually here for robustness
 
 # Setup Advanced Logging with Rotation
@@ -25,7 +25,7 @@ log.addHandler(file_handler)
 from utils.storage import p, load_json_safe
 from bot.views.filter_dashboard import FilterDashboard
 from core.scanner import start_scheduler, run_scan_once
-from web.server import start_web_server  # Novo web server
+from web.server import start_web_server
 from utils.config_validator import ConfigValidator
 from utils.security import validate_discord_token
 from utils.audit import audit_logger, AuditEventType, AuditSeverity
@@ -97,8 +97,11 @@ async def main():
                 details={"error": "config_validation_failed", "message": str(e)}
             )
         
-        # Iniciar Web Server
-        await start_web_server(port=8080)
+        # Web dashboard (127.0.0.1 por padrão — ver settings WEB_HOST / WEB_ENABLED)
+        if WEB_ENABLED:
+            await start_web_server(host=WEB_HOST, port=WEB_PORT)
+        else:
+            log.info("🌐 Web dashboard desligado (WEB_ENABLED=false).")
         
         # Registrar Views Persistentes
         cfg = load_json_safe(p("config.json"), {})

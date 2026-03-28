@@ -19,7 +19,8 @@ from urllib.parse import urlparse
 BLACKLIST = [
     # merch / genéricos
     "t-shirt", "apparel", "hoodie", "jacket", "clothing", "fashion",
-    "tcg", "card game", "board game", "cosplay",
+    # "board game" removido: falsos positivos (ex.: Gundam Assemble trailer)
+    "tcg", "card game", "cosplay",
 
     # esportes / entretenimento genérico (ruído)
     "futebol", "fifa", "uefa",
@@ -34,14 +35,16 @@ BLACKLIST = [
     "reality show", "reality tv", "variety show",
     "live action series", "live action", "live-action", "ação ao vivo",
     "still watching netflix",
-    "the anime effect", "gameplay trailer", "overview trailer", "gameplay overview",
+    "the anime effect", "gameplay trailer",
+    # overview trailer / gameplay overview: falsos positivos em jogos com IP de anime (ex. Arknights)
     "season finale",
     "twice", "timelesz", "k-pop", "j-pop",
     "grwm", "get ready with me", "green room", "tour",
     "this is i", "este sou eu", "o namorado", "the boyfriend", "namorado mensal",
     "diamond truth", "peaky blinders", "love is blind", "casamento às cegas",
     "documentary", "documentário", "docuseries", "série documental",
-    "netflix japan", "netflix japão", "netflix série", "netflix series",
+    # "netflix japan/japão" removido: bloqueava clips oficiais de anime (ONE PIECE, etc.) no canal Netflix JP
+    "netflix série", "netflix series",
 ]
 
 # Termos que GARANTEM que o conteúdo é "Anime-related"
@@ -56,7 +59,8 @@ STRICT_ANIME_KEYWORDS = [
     "ufotable", "wit studio", "bones", "production i.g", "science saru",
 
     # títulos/padrões comuns que confirmam anime
-    "spy x family", "spyxfamily", "spy×family", "spy-family", "jujutsu kaisen", "shingeki", "one piece", "naruto",
+    "spy x family", "spyxfamily", "spy×family", "spy-family", "jujutsu kaisen", "shingeki",
+    "one piece", "ワンピース", "naruto",
     "pv", "key visual",
 ]
 
@@ -90,7 +94,7 @@ UNTRUSTED_BLACKLIST = [
     "the boyfriend",
     "o namorado",
     "this is i",
-    "este som eu",
+    "este sou eu",
     "green room",
     "grwm",
     "set tour",
@@ -102,10 +106,9 @@ UNTRUSTED_BLACKLIST = [
     "circumstances",
     "情事",
     "事情",
-    # Termos de ator/elenco (mover da global para cá)
-    "cast", "elenco", "actor", "actor", "ator", "atriz", "actress",
-    "interview", "entrevista", "podcast", "behind the scenes", "bastidores", "making of",
-    "reactions", "reações", "now playing",
+    # Não usar "cast", "behind the scenes", "interview" etc.: PVs e docs de anime
+    # usam esses termos; a API do Discord não permite mailto em botões e o filtro
+    # estrito no título já reduz lixo em fontes untrusted.
     # Ronnie the Hawk e similares (live-action Netflix Japan)
     "ronnie the hawk",
     "ronnie hawkins",

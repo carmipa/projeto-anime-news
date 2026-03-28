@@ -138,6 +138,109 @@ def _format_publication_line(pub_dt: datetime | None) -> str:
     )
 
 
+# Discord API: botões link só aceitam http(s) ou discord — mailto: gera 50035.
+_DISCORD_LINK_BUTTON_URL_MAX = 512
+
+
+def _ensure_https_button_url(url: str) -> str:
+    """Garante URL segura para Button(style=link). Nunca mailto:, javascript:, etc."""
+    u = (url or "").strip()
+    if not u.startswith(("http://", "https://")):
+        raise ValueError(
+            "URL de botão rejeitada: Discord só aceita http(s) em link buttons "
+            f"(recebido: {u[:60]!r}…)"
+        )
+    if len(u) > _DISCORD_LINK_BUTTON_URL_MAX:
+        u = u[: _DISCORD_LINK_BUTTON_URL_MAX]
+    return u
+
+
+def _whatsapp_share_url(link: str, title: str) -> str:
+    from urllib.parse import quote
+
+    link = _ensure_https_button_url(link.strip())
+    base = "https://api.whatsapp.com/send?text="
+    full = quote(f"{title}\n\n{link}", safe="")
+    if len(base) + len(full) <= _DISCORD_LINK_BUTTON_URL_MAX:
+        return base + full
+    short = quote(link, safe="")
+    return (base + short)[:_DISCORD_LINK_BUTTON_URL_MAX]
+
+
+def _twitter_share_url(link: str, title: str) -> str:
+    from urllib.parse import quote
+
+    link = _ensure_https_button_url(link.strip())
+    uq = quote(link, safe="")
+    base = "https://twitter.com/intent/tweet?url="
+    suffix = "&text="
+    room = _DISCORD_LINK_BUTTON_URL_MAX - len(base) - len(uq) - len(suffix)
+    if room < 8:
+        return (base + uq)[:_DISCORD_LINK_BUTTON_URL_MAX]
+    tq = quote(title[:room], safe="")
+    out = base + uq + suffix + tq
+    return out[:_DISCORD_LINK_BUTTON_URL_MAX]
+
+
+def _build_news_share_view(link: str, t_translated: str) -> discord.ui.View:
+    """Somente links https — sem mailto (API Discord proíbe)."""
+    view = discord.ui.View(timeout=None)
+    view.add_item(
+        discord.ui.Button(
+            label="Leia Mais",
+            url=_ensure_https_button_url(link),
+            emoji="📖",
+            style=discord.ButtonStyle.link,
+        )
+    )
+    view.add_item(
+        discord.ui.Button(
+            label="WhatsApp",
+            url=_whatsapp_share_url(link, t_translated),
+            emoji="🟢",
+            style=discord.ButtonStyle.link,
+        )
+    )
+    view.add_item(
+        discord.ui.Button(
+            label="Compartilhar / X",
+            url=_twitter_share_url(link, t_translated[:400]),
+            emoji="📣",
+            style=discord.ButtonStyle.link,
+        )
+    )
+    return view
+
+
+def _build_media_share_view(link: str, t_translated: str) -> discord.ui.View:
+    view = discord.ui.View(timeout=None)
+    view.add_item(
+        discord.ui.Button(
+            label="Assistir Agora / Watch Now",
+            url=_ensure_https_button_url(link),
+            emoji="▶️",
+            style=discord.ButtonStyle.link,
+        )
+    )
+    view.add_item(
+        discord.ui.Button(
+            label="WhatsApp",
+            url=_whatsapp_share_url(link, t_translated),
+            emoji="🟢",
+            style=discord.ButtonStyle.link,
+        )
+    )
+    view.add_item(
+        discord.ui.Button(
+            label="Compartilhar / X",
+            url=_twitter_share_url(link, t_translated[:400]),
+            emoji="📣",
+            style=discord.ButtonStyle.link,
+        )
+    )
+    return view
+
+
 def _extract_youtube_id(url: str) -> str:
     """Extrai o ID do vídeo de uma URL do YouTube."""
     if not url:
@@ -398,11 +501,13 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                                 postado_str = _format_publication_line(pub_dt)
 
                                 embed_description = s_translated[:2000]
+                                # Discord não aceita botões link com mailto: — dica de e-mail só no texto
+                                email_hint = "\n\n✉️ _Para compartilhar por e-mail, copie o link da notícia._"
                                 if is_media:
                                     # Para vídeos, mantém descrição completa e link visível
-                                    embed_description = f"{s_translated[:1800]}\n\n🔗 **Assistir:** {link}\n\n{postado_str}"
+                                    embed_description = f"{s_translated[:1800]}\n\n🔗 **Assistir:** {link}\n\n{postado_str}{email_hint}"
                                 else:
-                                    embed_description = f"{s_translated[:1900]}\n\n{postado_str}"
+                                    embed_description = f"{s_translated[:1880]}\n\n{postado_str}{email_hint}"
 
                                 embed_url = None if is_media else link
 
@@ -439,32 +544,16 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                                     if yt_thumb:
                                         embed.set_thumbnail(url=yt_thumb)
 
-                                from urllib.parse import quote
-                                view = discord.ui.View(timeout=None)
-                                
-                                view.add_item(discord.ui.Button(label="Leia Mais", url=link, emoji="📖", style=discord.ButtonStyle.link))
-                                
-                                wa_text = quote(f"{t_translated}\n\n{link}")
-                                view.add_item(discord.ui.Button(label="WhatsApp", url=f"https://api.whatsapp.com/send?text={wa_text}", emoji="🟢", style=discord.ButtonStyle.link))
-                                
-                                x_share = f"https://twitter.com/intent/tweet?text={quote(t_translated[:220])}&url={quote(link)}"
-                                view.add_item(discord.ui.Button(label="Compartilhar / X", url=x_share, emoji="📣", style=discord.ButtonStyle.link))
-                                
-                                email_subj = quote(t_translated)
-                                email_body = quote(f"Confira esta notícia:\n\n{link}")
-                                view.add_item(discord.ui.Button(label="E-mail", url=f"mailto:?subject={email_subj}&body={email_body}", emoji="✉️", style=discord.ButtonStyle.link))
+                                # Botões: apenas http(s). mailto: quebra a API (50035) — nunca adicionar.
+                                view = _build_news_share_view(link, t_translated)
 
                                 # Para mídias (YouTube/Twitch), envia apenas título + link no content para ativar preview do player nativo
                                 if is_media:
-                                    # Para que o Discord crie o preview automático com player (unfurl), 
+                                    # Para que o Discord crie o preview automático com player (unfurl),
                                     # NÃO podemos enviar um embed customizado na mesma mensagem.
-                                    media_view = discord.ui.View(timeout=None)
-                                    media_view.add_item(discord.ui.Button(label="Assistir Agora / Watch Now", url=link, emoji="▶️", style=discord.ButtonStyle.link))
-                                    media_view.add_item(discord.ui.Button(label="WhatsApp", url=f"https://api.whatsapp.com/send?text={wa_text}", emoji="🟢", style=discord.ButtonStyle.link))
-                                    media_view.add_item(discord.ui.Button(label="Compartilhar / X", url=x_share, emoji="📣", style=discord.ButtonStyle.link))
-                                    media_view.add_item(discord.ui.Button(label="E-mail", url=f"mailto:?subject={email_subj}&body={email_body}", emoji="✉️", style=discord.ButtonStyle.link))
-                                    
-                                    content = f"**{t_translated}**\n{link}\n\n{postado_str}"
+                                    media_view = _build_media_share_view(link, t_translated)
+
+                                    content = f"**{t_translated}**\n{link}\n\n{postado_str}\n✉️ _Para compartilhar por e-mail, copie o link acima._"
                                     log.debug(f"🎬 [MEDIA] Enviando vídeo com player nativo: {link[:60]}...")
                                     await channel.send(content=content, view=media_view)
                                 else:

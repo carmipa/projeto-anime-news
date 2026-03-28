@@ -2,6 +2,7 @@
 Security utilities - Input validation, sanitization, rate limiting, and security checks.
 """
 import re
+import ipaddress
 import time
 from typing import Dict, Optional, Set, Tuple
 from collections import defaultdict
@@ -106,14 +107,49 @@ def validate_channel_id(channel_id: int) -> int:
 
 
 def validate_language(lang: str) -> str:
-    """Valida código de idioma."""
+    """Valida código de idioma (formato exato pt_BR, en_US, etc.)."""
     valid_langs = {'pt_BR', 'en_US', 'es_ES', 'it_IT'}
-    lang_upper = lang.upper()
-    
-    if lang_upper not in valid_langs:
+    if not lang or str(lang) not in valid_langs:
         raise ValidationError(f"Idioma inválido: {lang}. Válidos: {valid_langs}")
-    
-    return lang_upper
+    return str(lang)
+
+
+def _hostname_blocks_ssrf(hostname: str) -> bool:
+    """
+    False se o host for claramente inseguro para fetch servidor→URL (SSRF).
+    Bloqueia literais IP privados, loopback, link-local, metadata cloud comum, etc.
+    Hostnames DNS não são resolvidos aqui (risco residual se feed apontar para domínio malicioso).
+    """
+    if not hostname:
+        return False
+    host = hostname.strip().lower()
+    # IPv6 em URLs pode vir com []
+    if host.startswith("[") and host.endswith("]"):
+        host = host[1:-1]
+
+    blocked_names = {
+        "localhost", "127.0.0.1", "0.0.0.0", "::1",
+        "metadata.google.internal", "metadata", "instance-data",
+    }
+    if host in blocked_names:
+        return False
+
+    try:
+        ip = ipaddress.ip_address(host)
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+            or ip.is_unspecified
+        ):
+            return False
+        # AWS / cloud metadata (link-local 169.254.169.254 já coberto por is_link_local)
+    except ValueError:
+        pass
+
+    return True
 
 
 def validate_url(url: str, allowed_schemes: Set[str] = None) -> str:
@@ -149,11 +185,17 @@ def validate_url(url: str, allowed_schemes: Set[str] = None) -> str:
         if not parsed.netloc:
             raise ValidationError("URL sem hostname válido")
         
-        # Bloqueia IPs privados/localhost (prevenção SSRF)
-        hostname = parsed.hostname.lower()
-        if hostname in {'localhost', '127.0.0.1', '0.0.0.0', '::1'}:
-            raise ValidationError("URLs locais não são permitidas")
-        
+        # Prevenção SSRF: host literais perigosos e IPs privados/loopback
+        hostname = parsed.hostname
+        if not hostname:
+            raise ValidationError("URL sem hostname válido")
+        if not _hostname_blocks_ssrf(hostname):
+            raise ValidationError("Host não permitido (rede privada ou local)")
+
+        # Evita credenciais embutidas na URL (reduz vazamento em logs de terceiros)
+        if parsed.username is not None or parsed.password is not None:
+            raise ValidationError("URLs com usuário/senha não são permitidas")
+
         # Valida formato básico
         if len(url) > 2048:  # Limite HTTP
             raise ValidationError("URL muito longa (máximo 2048 caracteres)")

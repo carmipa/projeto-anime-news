@@ -3,6 +3,7 @@ Web Server module using aiohttp.
 Integrates directly with the bot loop.
 """
 import logging
+import hmac
 from aiohttp import web
 import aiohttp_jinja2
 import jinja2
@@ -16,6 +17,22 @@ log = logging.getLogger("AnimeBotWeb")
 
 routes = web.RouteTableDef()
 
+
+def _check_api_auth(request) -> bool:
+    """Se WEB_API_SECRET estiver definido, exige Authorization: Bearer <segredo>."""
+    try:
+        from settings import WEB_API_SECRET
+    except Exception:
+        WEB_API_SECRET = None
+    if not WEB_API_SECRET:
+        return True
+    auth = request.headers.get("Authorization", "").strip()
+    expected = f"Bearer {WEB_API_SECRET}"
+    if len(auth) != len(expected):
+        return False
+    return hmac.compare_digest(auth, expected)
+
+
 @routes.get('/')
 async def index(request):
     """Renderiza a página inicial."""
@@ -24,6 +41,8 @@ async def index(request):
 @routes.get('/api/stats')
 async def api_stats(request):
     """API JSON para atualizar status via AJAX."""
+    if not _check_api_auth(request):
+        raise web.HTTPForbidden(text="API protegida: defina Authorization: Bearer ou WEB_API_SECRET.")
     last_scan = stats.last_scan_time.isoformat() if stats.last_scan_time else "Never"
     return web.json_response({
         "uptime": stats.format_uptime(),

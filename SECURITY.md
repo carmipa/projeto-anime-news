@@ -76,8 +76,21 @@ if not allowed:
 
 ### 4. Prevenção SSRF
 
-- URLs locais bloqueadas (`localhost`, `127.0.0.1`, etc)
-- Apenas esquemas `http` e `https` permitidos
+- URLs locais bloqueadas (`localhost`, `127.0.0.1`, etc.)
+- **Endurecido:** literais IPv4/IPv6 privados, loopback, link-local e multicast são rejeitados em `validate_url` (feeds não podem apontar para rede interna por IP direto).
+- URLs com **usuário/senha embutidos** (`https://user:pass@...`) são rejeitadas (reduz vazamento acidental em logs).
+- Apenas esquemas `http` e `https` permitidos.
+- **Nota:** hostnames públicos que resolvem para IP interno (DNS) não são bloqueados sem resolver DNS — mantenha `sources.json` sob controle de confiança.
+
+### 4.1 Dashboard web (`aiohttp`)
+
+- Por padrão o servidor escuta em **`127.0.0.1`** (não expõe estatísticas na LAN inteira). Variáveis: `WEB_HOST`, `WEB_PORT`, `WEB_ENABLED` no `.env`.
+- Em Docker/rede isolada, se precisar `WEB_HOST=0.0.0.0`, restrinja com firewall ou rede privada.
+- Opcional: `WEB_API_SECRET` — se definido, **`/api/stats`** exige `Authorization: Bearer <segredo>`.
+
+### 4.2 Componentes Discord (dashboard de filtros)
+
+- Botões do painel verificam se a **guild da interação** corresponde ao painel, reduzindo abuso de `custom_id` entre servidores.
 - Validação de hostname antes de requisições
 
 ### 5. Sanitização de Arquivos
