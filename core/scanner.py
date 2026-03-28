@@ -501,13 +501,11 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                                 postado_str = _format_publication_line(pub_dt)
 
                                 embed_description = s_translated[:2000]
-                                # Discord não aceita botões link com mailto: — dica de e-mail só no texto
-                                email_hint = "\n\n✉️ _Para compartilhar por e-mail, copie o link da notícia._"
                                 if is_media:
                                     # Para vídeos, mantém descrição completa e link visível
-                                    embed_description = f"{s_translated[:1800]}\n\n🔗 **Assistir:** {link}\n\n{postado_str}{email_hint}"
+                                    embed_description = f"{s_translated[:1800]}\n\n🔗 **Assistir:** {link}\n\n{postado_str}"
                                 else:
-                                    embed_description = f"{s_translated[:1880]}\n\n{postado_str}{email_hint}"
+                                    embed_description = f"{s_translated[:1900]}\n\n{postado_str}"
 
                                 embed_url = None if is_media else link
 
@@ -547,11 +545,8 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                                 # Botões: apenas http(s). mailto: quebra a API (50035) — nunca adicionar.
                                 view = _build_news_share_view(link, t_translated)
 
-                                # Para mídias (YouTube/Twitch): o Discord sempre mostra o preview do link
-                                # *depois* de todo o texto do content — por isso data/e-mail não podem ficar
-                                # no mesmo content se quisermos abaixo do player.
-                                # Solução: 1ª mensagem = título + URL + botões; 2ª = resposta só com meta
-                                # (sem mention), fica visualmente “embaixo” do vídeo.
+                                # Para mídias (YouTube/Twitch): o preview do link vem depois do content.
+                                # 1ª mensagem = título + URL + botões; 2ª = resposta só com data/hora (sem mention).
                                 if is_media:
                                     media_view = _build_media_share_view(link, t_translated)
 
@@ -561,11 +556,7 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                                         content=content,
                                         view=media_view,
                                     )
-                                    meta_lines = (
-                                        f"{postado_str}\n\n"
-                                        "✉️ _Para compartilhar por **e-mail**, copie o link do vídeo "
-                                        "(mensagem acima)._"
-                                    )
+                                    meta_lines = postado_str
                                     try:
                                         await channel.send(
                                             content=meta_lines,
