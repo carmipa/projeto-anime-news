@@ -547,15 +547,35 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                                 # Botões: apenas http(s). mailto: quebra a API (50035) — nunca adicionar.
                                 view = _build_news_share_view(link, t_translated)
 
-                                # Para mídias (YouTube/Twitch), envia apenas título + link no content para ativar preview do player nativo
+                                # Para mídias (YouTube/Twitch): o Discord sempre mostra o preview do link
+                                # *depois* de todo o texto do content — por isso data/e-mail não podem ficar
+                                # no mesmo content se quisermos abaixo do player.
+                                # Solução: 1ª mensagem = título + URL + botões; 2ª = resposta só com meta
+                                # (sem mention), fica visualmente “embaixo” do vídeo.
                                 if is_media:
-                                    # Para que o Discord crie o preview automático com player (unfurl),
-                                    # NÃO podemos enviar um embed customizado na mesma mensagem.
                                     media_view = _build_media_share_view(link, t_translated)
 
-                                    content = f"**{t_translated}**\n{link}\n\n{postado_str}\n✉️ _Para compartilhar por e-mail, copie o link acima._"
+                                    content = f"**{t_translated}**\n{link}"
                                     log.debug(f"🎬 [MEDIA] Enviando vídeo com player nativo: {link[:60]}...")
-                                    await channel.send(content=content, view=media_view)
+                                    main_msg = await channel.send(
+                                        content=content,
+                                        view=media_view,
+                                    )
+                                    meta_lines = (
+                                        f"{postado_str}\n\n"
+                                        "✉️ _Para compartilhar por **e-mail**, copie o link do vídeo "
+                                        "(mensagem acima)._"
+                                    )
+                                    try:
+                                        await channel.send(
+                                            content=meta_lines,
+                                            reference=main_msg,
+                                            mention_author=False,
+                                        )
+                                    except Exception as meta_err:
+                                        log.warning(
+                                            f"⚠️ [MEDIA] Não foi possível enviar linha de meta abaixo do vídeo: {meta_err}"
+                                        )
                                 else:
                                     await channel.send(embed=embed, view=view)
 
