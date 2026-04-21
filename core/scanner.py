@@ -349,6 +349,7 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
         history_list, history_set = _load_history()
         http_state = load_http_state()
         config = load_json_safe(p("config.json"), {})
+        guild_lang_map = {gid: gcfg.get("language") for gid, gcfg in config.items() if "language" in gcfg}
         
         sent_count = 0
         cache_hits = 0
@@ -423,7 +424,7 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                         continue
 
                     # 3. Process Entries (Newest first usually)
-                    for entry in feed.entries[:30]: # Verifica últimos 30 posts (evita perder em canais ativos)
+                    for entry in feed.entries[:10]: # Verifica últimos 10 posts (evita perder em canais ativos)
                         link = getattr(entry, "link", "")
                         title = getattr(entry, "title", "No Title")
                         
@@ -444,6 +445,8 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
 
                         # log 1x por item, não 1x por guild
                         log.debug(f"🧪 [ITEM] src={link_url} | title={title[:80]}...")
+                        
+                        entry_translations = {}
 
                         # 4. Check Filters per Guild
                         # We need to broadcast this news to ALL matching guilds
@@ -464,11 +467,15 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
 
 
                             # Determine Language
-                            target_lang = t.detect_lang(guild_id)
+                            target_lang = t.detect_lang(guild_id, guild_lang_map=guild_lang_map)
                             
-                            # Translate
-                            t_translated = await translate_to_target(clean_html(title), target_lang)
-                            s_translated = await translate_to_target(clean_html(summary), target_lang)
+                            # Cache translation per language
+                            if target_lang not in entry_translations:
+                                t_translated = await translate_to_target(clean_html(title), target_lang)
+                                s_translated = await translate_to_target(clean_html(summary), target_lang)
+                                entry_translations[target_lang] = (t_translated, s_translated)
+                            else:
+                                t_translated, s_translated = entry_translations[target_lang]
 
                             # 5. Classifica tipo e envia para o Discord
                             try:

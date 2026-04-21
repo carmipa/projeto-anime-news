@@ -36,15 +36,20 @@ class Translator:
             except Exception as e:
                 log.error(f"Erro ao carregar tradução {lang}: {e}")
 
-    def detect_lang(self, guild_id: str, guild_locale: str = None) -> str:
+    def detect_lang(self, guild_id: str, guild_locale: str = None, guild_lang_map: dict = None) -> str:
         """
         Detecta idioma do servidor.
         Prioridade: 
-        1. Config manual (config.json)
-        2. Locale do servidor Discord
-        3. Padrão (en_US)
+        1. Mapa em memória (para evitar re-ler disco no hot path)
+        2. Config manual (config.json)
+        3. Locale do servidor Discord
+        4. Padrão (en_US)
         """
-        # 1. Config manual
+        # 1. Config manual (memória)
+        if guild_lang_map and guild_id in guild_lang_map:
+            return guild_lang_map[guild_id]
+
+        # 2. Config manual (disco)
         config = load_json_safe(p("config.json"), {})
         if guild_id in config and "language" in config[guild_id]:
             return config[guild_id]["language"]
