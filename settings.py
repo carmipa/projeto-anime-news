@@ -10,9 +10,9 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 # Operação (opcional via env)
 COMMAND_PREFIX = os.getenv("COMMAND_PREFIX", "!")
 try:
-    LOOP_MINUTES = int(os.getenv("LOOP_MINUTES", "720"))
+    LOOP_MINUTES = int(os.getenv("LOOP_MINUTES", "1440"))
 except ValueError:
-    LOOP_MINUTES = 720
+    LOOP_MINUTES = 1440
 
 # Web dashboard (segurança: por padrão só localhost; em Docker use WEB_HOST=0.0.0.0 com cuidado)
 WEB_ENABLED = os.getenv("WEB_ENABLED", "true").strip().lower() in ("1", "true", "yes", "on")

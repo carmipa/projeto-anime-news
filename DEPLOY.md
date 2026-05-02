@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="icon.png" alt="Gundam News Bot" width="200"/>
+  <img src="icon.png" alt="Anime News Bot" width="200"/>
 </p>
 
 <h1 align="center">🐳 Guia de Deploy — AnimeBootNews System</h1>
@@ -67,7 +67,7 @@ sudo chown $USER:$USER /opt/anime-news-bot
 cd /opt/anime-news-bot
 
 # Clonar repositório
-git clone https://github.com/carmipa/gundam-news-discord.git .
+git clone https://github.com/carmipa/anime-news-bot.git .
 ```
 
 **Ou upload manual via SCP:**
@@ -95,7 +95,7 @@ DISCORD_TOKEN=seu_token_discord_aqui
 
 # ⚙️ OPCIONAL (valores padrão)
 COMMAND_PREFIX=!
-LOOP_MINUTES=30
+LOOP_MINUTES=1440
 ```
 
 **Dica:** Obtenha seu token em <https://discord.com/developers/applications>
@@ -141,7 +141,7 @@ docker-compose logs -f
 
 ```
 ✅ Bot conectado como AnimeBootNews#1234
-📡 Iniciando loop de varredura (30 min)
+📡 Iniciando loop de varredura (24 horas)
 ```
 
 ---
@@ -163,7 +163,7 @@ docker-compose logs -f
 
 ```bash
 # Atualizar código do GitHub
-cd /opt/gundam-bot
+cd /opt/anime-news-bot
 git pull
 
 # Reiniciar bot com novo código
@@ -207,7 +207,7 @@ docker-compose logs --tail=50
 | Erro | Solução |
 |------|---------|
 | `Invalid token` | Verificar DISCORD_TOKEN no .env |
-| `Permission denied` | `sudo chown $USER:$USER /opt/gundam-bot` |
+| `Permission denied` | `sudo chown $USER:$USER /opt/anime-news-bot` |
 | `Port already in use` | Verificar se outro container está rodando |
 | `No module named 'discord'` | Rebuild: `docker-compose up -d --build` |
 
@@ -218,7 +218,7 @@ docker-compose logs --tail=50
 **Verificar política:**
 
 ```bash
-docker inspect gundam-news-bot | grep -A 5 RestartPolicy
+docker inspect anime-news-bot | grep -A 5 RestartPolicy
 ```
 
 Deve mostrar: `"Name": "unless-stopped"`
@@ -255,10 +255,10 @@ docker-compose up -d
 docker-compose ps
 
 # Healthcheck
-docker inspect gundam-news-bot | grep -A 10 Health
+docker inspect anime-news-bot | grep -A 10 Health
 
 # Uso de recursos (CPU, RAM, Rede)
-docker stats gundam-news-bot
+docker stats anime-news-bot
 ```
 
 **Saída esperada do stats:**
@@ -327,7 +327,7 @@ tar -czf ~/anime-backup-$(date +%Y%m%d-%H%M%S).tar.gz \
   .env
 
 # Download para PC local
-scp user@servidor:~/gundam-backup-*.tar.gz ./Desktop/
+scp user@servidor:~/anime-backup-*.tar.gz ./Desktop/
 ```
 
 ### Backup Automático (Cron)
@@ -344,12 +344,12 @@ crontab -e
 
 ```bash
 # Upload do backup
-scp ./gundam-backup-20260104.tar.gz user@servidor:~/
+scp ./anime-backup-20260104.tar.gz user@servidor:~/
 
 # Restaurar
-cd /opt/gundam-bot
+cd /opt/anime-news-bot
 docker-compose down
-tar -xzf ~/gundam-backup-20260104.tar.gz
+tar -xzf ~/anime-backup-20260104.tar.gz
 docker-compose up -d
 ```
 
@@ -361,20 +361,20 @@ docker-compose up -d
 
 ```bash
 # Fazer backup completo
-cd /opt/gundam-bot
-tar -czf gundam-full-backup.tar.gz *
+cd /opt/anime-news-bot
+tar -czf anime-full-backup.tar.gz *
 
 # Download
-scp user@servidor-antigo:/opt/gundam-bot/gundam-full-backup.tar.gz ./
+scp user@servidor-antigo:/opt/anime-news-bot/anime-full-backup.tar.gz ./
 ```
 
 ### Servidor Novo
 
 ```bash
 # Preparar diretório
-sudo mkdir -p /opt/gundam-bot
-sudo chown $USER:$USER /opt/gundam-bot
-cd /opt/gundam-bot
+sudo mkdir -p /opt/anime-news-bot
+sudo chown $USER:$USER /opt/anime-news-bot
+cd /opt/anime-news-bot
 
 # Upload e extrair
 scp anime-news-full-backup.tar.gz user@servidor-novo:/opt/anime-news-bot/
@@ -400,7 +400,7 @@ docker-compose logs -f
 ### Minor Updates (ex: v2.1.0 → v2.1.1)
 
 ```bash
-cd /opt/gundam-bot
+cd /opt/anime-news-bot
 git pull
 docker-compose restart
 ```
@@ -427,7 +427,7 @@ docker-compose logs -f
 ## 📂 Estrutura de Arquivos no Servidor
 
 ```
-/opt/gundam-bot/
+/opt/anime-news-bot/
 ├── 🐳 Docker
 │   ├── Dockerfile              # Build da imagem
 │   ├── docker-compose.yml      # Orquestração
@@ -480,7 +480,7 @@ docker-compose logs -f
 | Recurso | Link |
 |---------|------|
 | 📖 **README Principal** | [readme.md](readme.md) |
-| 🐛 **Issues GitHub** | [github.com/carmipa/gundam-news-discord/issues](https://github.com/carmipa/gundam-news-discord/issues) |
+| 🐛 **Issues GitHub** | [github.com/carmipa/anime-news-bot/issues](https://github.com/carmipa/anime-news-bot/issues) |
 | 📚 **Docker Docs** | [docs.docker.com](https://docs.docker.com) |
 | 💬 **Discord.py Docs** | [discordpy.readthedocs.io](https://discordpy.readthedocs.io) |
 
@@ -488,17 +488,17 @@ docker-compose logs -f
 
 ```bash
 # Ver todas as variáveis de ambiente
-docker-compose exec gundam-bot env
+docker-compose exec anime-news-bot env
 
 # Verificar Python e módulos instalados
-docker-compose exec gundam-bot python --version
-docker-compose exec gundam-bot pip list
+docker-compose exec anime-news-bot python --version
+docker-compose exec anime-news-bot pip list
 
 # Testar conexão Discord
-docker-compose exec gundam-bot python -c "import discord; print(discord.__version__)"
+docker-compose exec anime-news-bot python -c "import discord; print(discord.__version__)"
 
 # Ver configuração JSON
-docker-compose exec gundam-bot cat config.json | python -m json.tool
+docker-compose exec anime-news-bot cat config.json | python -m json.tool
 ```
 
 ---

@@ -74,7 +74,7 @@ class FilterDashboard(discord.ui.View):
         # - news (notícias sobre produção / bastidores)
         # - music (openings/OST relacionados a anime)
         #
-        # Filtros adicionais (games, filmes, gunpla, etc.) continuam
+        # Filtros adicionais (games, filmes, etc.) continuam
         # suportados via config.json, mas não aparecem como botões aqui.
         visible_keys = {"anime", "news", "music"}
         
@@ -126,7 +126,7 @@ class FilterDashboard(discord.ui.View):
             )
             return
         
-        # Extrai categoria do custom_id: "anime:filter:123456:gunpla"
+        # Extrai categoria do custom_id: "anime:filter:123456:anime"
         parts = interaction.data.get("custom_id", "").split(":")
         if len(parts) < 4:
             await interaction.response.send_message("❌ Erro ao processar.", ephemeral=True)

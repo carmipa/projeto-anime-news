@@ -296,7 +296,7 @@ tar -czf backup-emergency-$(date +%Y%m%d-%H%M%S).tar.gz config.json audit.json
 
 ### Contatos de Segurança
 
-- **Issues**: [GitHub Issues](https://github.com/carmipa/gundam-news-discord/issues)
+- **Issues**: [GitHub Issues](https://github.com/carmipa/anime-news-bot/issues)
 - **Email**: (configurar conforme necessário)
 
 ---

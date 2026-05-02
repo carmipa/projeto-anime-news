@@ -24,7 +24,7 @@ class ConfigValidator:
                         "type": "array",
                         "items": {
                             "type": "string",
-                            "enum": ["anime", "news", "music", "gunpla", "games", "filmes", "todos"]
+                            "enum": ["anime", "news", "music", "games", "filmes", "todos"]
                         }
                     },
                     "channel_id": {"type": "integer"},
@@ -107,7 +107,7 @@ class ConfigValidator:
                 errors.append(f"Guild {guild_id_str}: filters deve ser uma lista")
                 continue
             
-            valid_filters = {"anime", "news", "music", "gunpla", "games", "filmes", "todos"}
+            valid_filters = {"anime", "news", "music", "games", "filmes", "todos"}
             invalid_filters = [f for f in filters if f not in valid_filters]
             if invalid_filters:
                 errors.append(f"Guild {guild_id_str}: filtros inválidos: {invalid_filters}")

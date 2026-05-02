@@ -1,7 +1,7 @@
 # 🗞️ AnimeBootNews — Seu Bot de Notícias de Anime
 
 <p align="center">
-  <img alt="Gundam News Bot" src="./icon.png" width="300">
+  <img alt="Anime News Bot" src="./icon.png" width="300">
 </p>
 
 <div align="center">
@@ -31,7 +31,7 @@ Filtragem automática de Games, Merch e Roupas • Dashboard Interativo • Post
 
 | 🎯 Feature | 📝 Descrição | 🔧 Configurável |
 |-----------|-----------|-----------------|
-| 📡 **Scanner Automático** | Varredura de feeds RSS/Atom/YouTube a cada 30 minutos | ✅ Sim |
+| 📡 **Scanner Automático** | Varredura de feeds RSS/Atom/YouTube a cada 24 horas | ✅ Sim |
 | 🛡️ **Filtro Anti-Merch** | Bloqueia automaticamente games, brinquedos, roupas e figures | ✅ Customizável |
 | 🎯 **Categorias Inteligentes** | Anime, News e Música (OSTs/Openings) | ✅ Ativável |
 | 🎛️ **Dashboard Persistente** | Painel interativo que funciona mesmo após restart | ✅ Multi-Guild |
@@ -125,7 +125,7 @@ flowchart LR
                           │
 ┌─────────────────────────▼──────────────────────────────────────┐
 │                    CORE SCANNER (APScheduler)                   │
-│  • Executa a cada 30 minutos                                   │
+│  • Executa a cada 24 horas                                   │
 │  • Realiza requisições assíncronas                             │
 │  • Normaliza formatos de feed                                  │
 └─────────────────────────┬──────────────────────────────────────┘
@@ -170,7 +170,7 @@ flowchart LR
 ### 🔄 Fluxo de Dados Detalhado
 
 ```
-INÍCIO DO CICLO (a cada 30 min)
+INÍCIO DO CICLO (a cada 24h)
     │
     ├─► [APScheduler] Dispara start_scheduler()
     │
@@ -195,7 +195,7 @@ INÍCIO DO CICLO (a cada 30 min)
     ├─► [FilterEngine] Pipeline de filtros
     │   ├─► 1º: Verificar blacklist_keywords (REGEX)
     │   │   ├─ "game", "ps5", "xbox", etc
-    │   │   ├─ "gunpla", "figure", "statue"
+    │   │   ├─ "figure", "statue"
     │   │   ├─ "t-shirt", "apparel", "clothing"
     │   │   └─ Se MATCH → Rejeita ❌
     │   │
@@ -233,7 +233,7 @@ INÍCIO DO CICLO (a cada 30 min)
 SALVA ESTADO
     ├─► history.json += [novo_id]
     ├─► state.json atualiza timestamp
-    └─► Aguarda próximo ciclo (30 min)
+    └─► Aguarda próximo ciclo (24h)
 ```
 
 ### 💾 Estrutura de Dados
@@ -325,11 +325,11 @@ SALVA ESTADO
 
 ```bash
 # Clone o projeto
-git clone https://github.com/carmipa/gundam-news-discord.git
+git clone https://github.com/carmipa/anime-news-bot.git
 cd anime-news-bot
 
 # Ou baixe o ZIP
-# https://github.com/carmipa/gundam-news-discord/archive/refs/heads/main.zip
+# https://github.com/carmipa/anime-news-bot/archive/refs/heads/main.zip
 ```
 
 #### Passo 2️⃣ - Criar Ambiente Virtual
@@ -378,7 +378,7 @@ export DISCORD_TOKEN="seu_token_aqui"
 # .env
 DISCORD_TOKEN=seu_token_discord_aqui
 COMMAND_PREFIX=!
-LOOP_MINUTES=30
+LOOP_MINUTES=1440
 ```
 
 #### Passo 5️⃣ - Executar o Bot
@@ -389,7 +389,7 @@ python main.py
 
 # Você deve ver:
 # ✅ Logged in as BotName#1234
-# 📡 Scanner iniciado - próxima varredura em 30 minutos
+# 📡 Scanner iniciado - próxima varredura em 24 horas
 # 🖥️ Web Server rodando em http://localhost:8080
 ```
 
@@ -437,7 +437,7 @@ Edite `config.json`:
     "filters": ["anime", "news", "music"],
     "language": "pt_BR",
     "enabled": true,
-    "custom_keywords_block": ["gunpla", "figures"]
+    "custom_keywords_block": ["games", "figures"]
   }
 }
 ```
@@ -532,7 +532,7 @@ O sistema usa **4 camadas de filtro** em cascata:
 Entrada
   │
   ├─► 1️⃣ BLACKLIST KEYWORDS (Regex)
-  │   └─ Bloqueia: "game", "ps5", "gunpla", "t-shirt", etc
+  │   └─ Bloqueia: "game", "ps5", "t-shirt", etc
   │
   ├─► 2️⃣ WHITELIST KEYWORDS
   │   └─ Permite: "anime", "episode", "trailer", etc
@@ -558,7 +558,7 @@ switch, steam, playstation, game review, gaming
 #### 🧸 Brinquedos & Merchandising
 
 ```
-gunpla, figure, statue, toy, model kit, collectible
+figure, statue, toy, model kit, collectible
 action figure, doll, diorama, merchandise, merch
 ```
 
@@ -587,7 +587,7 @@ BLACKLIST_KEYWORDS = [
     'gameplay', 'videogame', 'ps5', 'xbox',
     
     # Merch
-    'gunpla', 'figure', 'statue', 'toy',
+    'figure', 'statue', 'toy',
     
     # Roupas
     't-shirt', 'apparel', 'clothing',
@@ -902,7 +902,7 @@ DISCORD_TOKEN=seu_token_aqui
 # No terminal Python
 from core.filters import FilterEngine
 engine = FilterEngine()
-result = engine.check_title("Novo episódio de Gundam")
+result = engine.check_title("Novo episódio de One Piece")
 print(result)  # {'approved': True, 'reason': 'OK'}
 ```
 
@@ -936,7 +936,7 @@ Contribuições são bem-vindas! Por favor:
 
 ### 🐛 Reportando Bugs
 
-Use [GitHub Issues](https://github.com/carmipa/gundam-news-discord/issues) com:
+Use [GitHub Issues](https://github.com/carmipa/anime-news-bot/issues) com:
 
 - Descrição clara do problema
 - Passos para reproduzir
@@ -945,7 +945,7 @@ Use [GitHub Issues](https://github.com/carmipa/gundam-news-discord/issues) com:
 
 ### 💡 Sugerindo Features
 
-Abra uma [Discussion](https://github.com/carmipa/gundam-news-discord/discussions) com:
+Abra uma [Discussion](https://github.com/carmipa/anime-news-bot/discussions) com:
 
 - Descrição da feature
 - Caso de uso
@@ -979,7 +979,7 @@ Abra uma [Discussion](https://github.com/carmipa/gundam-news-discord/discussions
 ## 📞 Suporte
 
 - 💬 **Discord**: [Servidor de Suporte]()
-- 🐛 **Issues**: [GitHub Issues](https://github.com/carmipa/gundam-news-discord/issues)
+- 🐛 **Issues**: [GitHub Issues](https://github.com/carmipa/anime-news-bot/issues)
 - 📧 **Email**: <contato@example.com>
 - 📱 **Twitter**: [@AnimeBootNews](https://twitter.com)
 

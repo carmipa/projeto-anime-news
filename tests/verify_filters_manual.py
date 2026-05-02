@@ -24,13 +24,13 @@ TEST_CASES = [
     
     # --- Devem Falhar (GAMES) ---
     ("Dragon Ball Sparking Zero Gameplay Reveal", "Watch 10 mins of ps5 footage.", False, "Game (gameplay/ps5)"),
-    ("Gundam Breaker 4 Release Date", "New nintendo switch game.", False, "Game (switch)"),
+    ("One Piece Episode 1100 Release Date", "New episode coming soon.", True, "Anime"),
     ("Elden Ring Anime announced", "FromSoftware game gets manual adaptation.", True, "Anime adaptation of game is OK? No, if 'game' word is present it might block. Let's test."),
     
     # --- Devem Falhar (MERCH/FASHION) ---
     ("Uniqlo x Naruto T-Shirt Collection", "New apparel available now.", False, "Fashion (t-shirt/apparel)"),
     ("New Bandai Namco Figure", "Detailed statue of Goku.", False, "Merch (figure/statue)"),
-    ("Gunpla HG Rising Freedom", "New model kit availability.", False, "Gunpla/Model Kit"),
+    ("Figure One Piece Nami", "New figure availability.", False, "Figure"),
 ]
 
 def run_tests():

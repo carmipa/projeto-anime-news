@@ -88,11 +88,11 @@ TEST_CASES = [
     },
     # Casos que DEVEM passar (anime relacionado)
     {
-        "title": "New Gundam Anime Trailer Released",
+        "title": "New Anime Trailer Released",
         "summary": "Sunrise studio announces new series",
         "source": "https://www.youtube.com/feeds/videos.xml?channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q",
         "expected": True,
-        "reason": "Gundam é anime relacionado"
+        "reason": "Anime é conteúdo relacionado"
     },
     {
         "title": "Crunchyroll adds new Manga titles",

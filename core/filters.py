@@ -19,7 +19,7 @@ from urllib.parse import urlparse
 BLACKLIST = [
     # merch / genéricos
     "t-shirt", "apparel", "hoodie", "jacket", "clothing", "fashion",
-    # "board game" removido: falsos positivos (ex.: Gundam Assemble trailer)
+    # "board game" removido: falsos positivos (ex.: trailer de jogos de tabuleiro)
     "tcg", "card game", "cosplay",
 
     # esportes / entretenimento genérico (ruído)
@@ -51,7 +51,7 @@ BLACKLIST = [
 STRICT_ANIME_KEYWORDS = [
     "anime", "animes", "manga", "mangas", "mangá", "mangás",
     "light novel", "visual novel", "otaku",
-    "gundam", "ghibli", "shonen", "seinen", "shoujo", "josei",
+    "ghibli", "shonen", "seinen", "shoujo", "josei",
     "isekai", "mecha", "chibi", "kawaii", "kaiju",
 
     # marcas/estúdios/distribuidores (âncoras fortes)
@@ -137,10 +137,6 @@ CAT_MAP = {
         "music", "ost", "soundtrack", "opening", "ending",
         "theme song", "op", "ed", "singer", "concert"
     ],
-    "gunpla": [
-        "gunpla", "gundam", "model kit", "ver.ka", "p-bandai", "hg", "mg", "pg", "rg",
-        "robot spirits", "metal build"
-    ],
     "games": [
         "game", "rpg", "console", "pc", "ps5", "xbox", "nintendo", "switch",
         "mobile game", "visual novel"
@@ -158,7 +154,6 @@ FILTER_OPTIONS = {
     "anime": ("Anime", "🎬"),
     "news": ("News", "📰"),
     "music": ("Music", "🎵"),
-    "gunpla": ("Gunpla", "🤖"),
     "games": ("Games", "🎮"),
     "filmes": ("Filmes", "🎥"),
 }
@@ -287,7 +282,7 @@ def match_intel(
         if matched_kw:
             # Regra: todas as categorias precisam ter ao menos 1 termo estrito de anime
             # (garante que só passem notícias de anime, nunca conteúdo genérico)
-            if f in ["anime", "news", "games", "filmes", "music", "musica", "gunpla"]:
+            if f in ["anime", "news", "games", "filmes", "music", "musica"]:
                 check_text = title_clean if is_untrusted else content
                 strict_match = _contains_any(check_text, STRICT_ANIME_KEYWORDS)
                 

@@ -245,7 +245,7 @@ def sanitize_string(text: str, max_length: int = 2000, allow_html: bool = False)
 
 def validate_filters(filters: list) -> list:
     """Valida lista de filtros."""
-    valid_filters = {'anime', 'news', 'music', 'gunpla', 'games', 'filmes', 'todos'}
+    valid_filters = {'anime', 'news', 'music', 'games', 'filmes', 'todos'}
     
     if not isinstance(filters, list):
         raise ValidationError("Filtros devem ser uma lista")

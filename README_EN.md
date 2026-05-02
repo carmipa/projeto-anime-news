@@ -53,7 +53,7 @@
 
 | Feature | Description |
 |---------|------------|
-| 📡 **Periodic Scanner** | Scans RSS/Atom/YouTube feeds every **30 minutes** (configurable) |
+| 📡 **Periodic Scanner** | Scans RSS/Atom/YouTube feeds every **24 hours** (configurable) |
 | 🛡️ **Anti‑Merch Filter** | **Natively blocks** games, toys, clothes, and figures. Pure ANIME signal. |
 | 🎯 **Smart Categories** | Anime (Trailers/Eps), News (Announcements), Music (OSTs/Openings) |
 | 🎛️ **Persistent Dashboard** | Discord dashboard with buttons that survive restarts |
@@ -124,7 +124,7 @@ flowchart LR
 ### 2️⃣ Clone & Virtualenv
 
 ```bash
-git clone https://github.com/carmipa/gundam-news-discord.git
+git clone https://github.com/carmipa/anime-news-bot.git
 cd anime-news-bot
 
 python -m venv .venv
@@ -146,7 +146,7 @@ pip install -r requirements.txt
 # .env
 DISCORD_TOKEN=your_discord_bot_token_here
 COMMAND_PREFIX=!
-LOOP_MINUTES=30
+LOOP_MINUTES=1440
 ```
 
 ### 5️⃣ Run
@@ -227,7 +227,7 @@ Use Discord’s **Developer Mode** to copy server and channel IDs.
 
 ## 🎛️ Dashboard
 
-- Toggle filters (Anime / News / Music / Games / Movies / Gunpla / All)
+- Toggle filters (Anime / News / Music / Games / Movies / All)
 - See active filters for the current guild
 - Reset configuration with a button
 - Triggers a **manual scan** when you open it (so you see news immediately)
@@ -238,7 +238,7 @@ Use Discord’s **Developer Mode** to copy server and channel IDs.
 
 The core principle is **Active Exclusion**:
 
-- ❌ Blocks: `gameplay`, `ps5`, `xbox`, `nintendo`, `gunpla`, `figure`, `t-shirt`, …
+- ❌ Blocks: `gameplay`, `ps5`, `xbox`, `nintendo`, `figure`, `t-shirt`, …
 - ✅ Allows: anime‑related content (episodes, trailers, OSTs, announcements)
 - ✅ Uses strict anime keywords to avoid unrelated entertainment/news noise
 - ✅ Uses colour‑coded cards in Discord embeds for launches, videos, reposts and normal news

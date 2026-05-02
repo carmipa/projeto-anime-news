@@ -13,7 +13,7 @@ from core.filters import match_intel
     ("O POVO FALA SOBRE ONE PIECE!", "Netflix Brasil", "https://www.youtube.com/feeds/videos.xml?channel_id=UCc1l5mTmAv2GC_PXrBpqyKQ", False),
     
     # Control cases (Should PASS)
-    ("Trailer de Gundam Requiem for Vengeance - Netflix", "Anime mecha legal", "https://www.youtube.com/feeds/videos.xml?channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q", True),
+    ("Trailer de One Piece - Netflix", "Anime legal", "https://www.youtube.com/feeds/videos.xml?channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q", True),
     ("SPY x FAMILY Season 3 Teaser", "Anya volta", "https://www.youtube.com/feeds/videos.xml?channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q", True),
 ])
 def test_netflix_filters(title, summary, source, should_pass):

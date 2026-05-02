@@ -39,7 +39,7 @@ GUILD_ID = "417746665219424277"
     ("Os membros que serão os últimos do filme especial são... | projeto timelesz -REAL-", "Netflix Japan", "https://youtube.com/feeds/videos.xml?channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q", False),
 
     # Valid Anime Content (Should still pass)
-    ("New Anime 'Gundam' Trailer Released", "Sunrise studio", "https://rss.feed/test", True),
+    ("New Anime 'Naruto' Trailer Released", "Studio Pierrot", "https://rss.feed/test", True),
     ("Crunchyroll adds new Manga titles", "Spring season", "https://rss.feed/test", True),
     
     # Reported False Positives Fixes
