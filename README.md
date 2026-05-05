@@ -11,7 +11,7 @@
 [![Status](https://img.shields.io/badge/Status-Ativo-success?style=flat-square)](https://github.com)
 [![License MIT](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 [![Código Aberto](https://img.shields.io/badge/Código-Aberto-blueviolet?style=flat-square)](https://github.com)
-[![Segurança](https://img.shields.io/badge/Security-Hardened-important?style=flat-square&logo=shield)](SECURITY.md)
+[![Segurança](https://img.shields.io/badge/Security-Hardened-important?style=flat-square&logo=shield)](docs/SECURITY.md)
 [![Documentação](https://img.shields.io/badge/Docs-PT--BR%20%7C%20EN--US-informational?style=flat-square)](#-guia-completo)
 [![i18n](https://img.shields.io/badge/i18n-PT--BR%20%7C%20EN--US%20%7C%20ES--ES%20%7C%20IT--IT-orange?style=flat-square)](#-sistema-multi-idioma)
 [![Python Version](https://img.shields.io/badge/requirements.txt-compatible-blue?style=flat-square)](requirements.txt)
@@ -38,7 +38,7 @@ Filtragem automática de Games, Merch e Roupas • Dashboard Interativo • Post
 | 🔄 **Deduplicação Avançada** | Histórico em `history.json` - nunca repete notícias | ✅ Automático |
 | 🌐 **Multi-Guild Support** | Configuração independente por servidor Discord | ✅ Suportado |
 | 📝 **Logs Estruturados** | Logs estruturados (JSON) com auditoria em `audit.json` | ✅ Sempre Ativo |
-| 🛡️ **Segurança & GRC** | Rate limiting, validação de entrada e política completa em `SECURITY.md` | ✅ Endurecido |
+| 🛡️ **Segurança & GRC** | Rate limiting, validação de entrada e política completa em `docs/SECURITY.md` | ✅ Endurecido |
 | 🎞️ **Player Nativo** | Vídeos do YouTube/Twitch tocam direto no Discord | ✅ Integrado |
 | 🌍 **Multi-Idioma** | Suporte a EN, PT-BR, ES, IT (detecção automática) | ✅ 4 idiomas |
 | 🖥️ **Web Dashboard** | Painel visual em `http://localhost:8080` com status real | ✅ REST API |
@@ -473,7 +473,7 @@ O bot detecta automaticamente qual servidor e canal usar através dos IDs em `co
 
 Para uma lista detalhada de todos os comandos, permissões e exemplos de uso, consulte o guia oficial:
 
-👉 **[COMMANDS.md](COMMANDS.md)**
+👉 **[docs/COMMANDS.md](docs/COMMANDS.md)**
 
 Resumo rápido:
 
@@ -657,8 +657,8 @@ O **AnimeBootNews** vem com um módulo de segurança e GRC completo:
 
 Para detalhes técnicos avançados, consulte:
 
-- 📄 `SECURITY.md` – Política de segurança e GRC
-- 📄 `BUGFIXES.md` – Histórico de correções e hardening
+- 📄 `docs/SECURITY.md` – Política de segurança e GRC
+- 📄 `docs/BUGFIXES.md` – Histórico de correções e hardening
 
 ---
 
@@ -760,7 +760,7 @@ docker stop anime-news-bot
 
 ### ☁️ Deploy em VPS (Ubuntu/Debian)
 
-Para um guia completo de deploy em produção, veja [DEPLOY.md](DEPLOY.md)
+Para um guia completo de deploy em produção, veja [DEPLOY.md](docs/DEPLOY.md)
 
 ---
 
@@ -817,14 +817,36 @@ anime-news-bot/
 │   ├── test_utils.py
 │   └── verify_filters_manual.py
 │
+├── 📁 scripts/
+│   └── 📁 maintenance/                 # Scripts auxiliares e troubleshooting
+│       ├── check_rss.py
+│       ├── check_sources.py
+│       ├── fast_resolve.py
+│       ├── identify_sources.py
+│       ├── resolve_batch3.py
+│       ├── resolve_channels.py
+│       └── resolve_sync.py
+│
+├── 📁 reports/                         # Artefatos temporários e relatórios locais
+│   ├── new_channels.txt
+│   ├── resolved_feeds.txt
+│   ├── validation_report.txt
+│   └── output_test.txt
+│
 ├── 📋 config.json                      # Configuração por Guild
 ├── 📋 sources.json                     # Feeds configurados
 ├── 📋 history.json                     # Histórico de notícias
 ├── 📋 state.json                       # Estado da aplicação
 │
 ├── 📖 README.md                        # Este arquivo
-├── 📖 README_EN.md                     # English version
-├── 📖 DEPLOY.md                        # Guia de deploy
+├── 📁 docs/                            # Documentação complementar
+│   ├── README_EN.md                    # English version
+│   ├── DEPLOY.md                       # Guia de deploy
+│   ├── COMMANDS.md                     # Comandos
+│   ├── SECURITY.md                     # Segurança
+│   ├── BUGFIXES.md                     # Correções
+│   ├── CHANGELOG_SECURITY.md           # Histórico de hardening
+│   └── ASSETS.md                       # Assets e identidade visual
 ├── 📜 LICENSE                          # MIT License
 └── 🔖 .env.example                     # Template .env
 ```

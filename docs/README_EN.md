@@ -113,7 +113,7 @@ flowchart LR
 
 ## 🚀 Installation
 
-> For full step‑by‑step details (PT‑BR), see the main [readme.md](readme.md).
+> For full step‑by‑step details (PT‑BR), see the main [readme.md](../readme.md).
 
 ### 1️⃣ Requirements
 
@@ -204,7 +204,7 @@ Use Discord’s **Developer Mode** to copy server and channel IDs.
 
 ## 🧰 Commands
 
-> Full PT‑BR command reference: [COMMANDS.md](COMMANDS.md)
+> Full PT‑BR command reference: [COMMANDS.md](docs/COMMANDS.md)
 
 ### User Commands
 
@@ -266,13 +266,13 @@ AnimeBootNews ships with a hardened security layer:
 - Structured audit trail in `audit.json`
 - Commands `/audit` and `/audit_stats` for in‑Discord insights
 
-See **[SECURITY.md](SECURITY.md)** for the full GRC policy.
+See **[SECURITY.md](docs/SECURITY.md)** for the full GRC policy.
 
 ---
 
 ## 🐳 Deploy
 
-For a full production guide (Docker + VPS), see **[DEPLOY.md](DEPLOY.md)** (PT‑BR).
+For a full production guide (Docker + VPS), see **[DEPLOY.md](docs/DEPLOY.md)** (PT‑BR).
 
 - Dockerfile + `docker-compose.yml` included
 - Healthcheck, log rotation and persistent volumes

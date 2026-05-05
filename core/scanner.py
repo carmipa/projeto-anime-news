@@ -4,12 +4,13 @@ Scanner module - Feed fetching and processing logic.
 import ssl
 import asyncio
 import logging
+import re
 import feedparser
 import aiohttp
 import certifi
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Set, Tuple, Dict, Any
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
 
 import discord
 from discord.ext import tasks
@@ -136,6 +137,17 @@ def _format_publication_line(pub_dt: datetime | None) -> str:
         f"🕒 **Postado em:** {label} (UTC) "
         f"· <t:{unix_ts}:F> · <t:{unix_ts}:R>"
     )
+
+
+def _extract_entry_datetime(entry: Any) -> datetime | None:
+    """Extrai data UTC do entry (published/updated)."""
+    st = getattr(entry, "published_parsed", None) or getattr(entry, "updated_parsed", None)
+    if not st:
+        return None
+    try:
+        return datetime(*st[:6], tzinfo=timezone.utc)
+    except Exception:
+        return None
 
 
 # Discord API: botões link só aceitam http(s) ou discord — mailto: gera 50035.
@@ -280,6 +292,73 @@ def _get_youtube_thumbnail(url: str) -> str:
         return f"https://img.youtube.com/vi/{yid}/hqdefault.jpg"
     return ""
 
+
+def _extract_best_image_url(entry: Any, link: str, summary: str) -> str:
+    """
+    Tenta extrair a melhor imagem possível do item do feed.
+    Ordem:
+    1) media_thumbnail
+    2) media_content (type=image)
+    3) links/enclosures (rel=enclosure ou type=image)
+    4) primeira <img src=...> no summary/content
+    5) fallback YouTube thumbnail
+    """
+    try:
+        thumbs = getattr(entry, "media_thumbnail", None)
+        if thumbs and isinstance(thumbs, list):
+            url = thumbs[0].get("url", "")
+            if url.startswith(("http://", "https://")):
+                return url
+    except Exception:
+        pass
+
+    try:
+        media = getattr(entry, "media_content", None)
+        if media and isinstance(media, list):
+            for item in media:
+                url = item.get("url", "")
+                ctype = (item.get("type", "") or "").lower()
+                if url.startswith(("http://", "https://")) and ("image" in ctype or not ctype):
+                    return url
+    except Exception:
+        pass
+
+    try:
+        links = getattr(entry, "links", None) or []
+        if isinstance(links, list):
+            for item in links:
+                href = item.get("href", "")
+                rel = (item.get("rel", "") or "").lower()
+                ctype = (item.get("type", "") or "").lower()
+                if href.startswith(("http://", "https://")) and (rel == "enclosure" or "image" in ctype):
+                    return href
+    except Exception:
+        pass
+
+    html_blob = summary or ""
+    try:
+        content_list = getattr(entry, "content", None)
+        if content_list and isinstance(content_list, list):
+            html_blob += " " + " ".join((c.get("value", "") for c in content_list if isinstance(c, dict)))
+    except Exception:
+        pass
+
+    if html_blob:
+        m = re.search(r'<img[^>]+src=["']([^"']+)["']', html_blob, re.IGNORECASE)
+        if m:
+            src = m.group(1).strip()
+            if src.startswith(("http://", "https://")):
+                return src
+            if src.startswith("//"):
+                return "https:" + src
+            if src.startswith("/"):
+                return urljoin(link, src)
+
+    if "youtube.com" in link or "youtu.be" in link:
+        return _get_youtube_thumbnail(link)
+
+    return ""
+
 def load_sources() -> List[str]:
     """Carrega todas as URLs de sources.json em uma lista plana."""
     data = load_json_safe(p("sources.json"), {})
@@ -353,6 +432,11 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
         
         sent_count = 0
         cache_hits = 0
+
+        now_utc = datetime.now(timezone.utc)
+        window_start = now_utc - timedelta(days=1)
+
+        log.info("🛡️ [INGEST] Política ativa: feeds estruturados | janela=hoje/ontem | publicações=sem limite por rodada")
         
         # SSL context for aiohttp
         ssl_ctx = ssl.create_default_context(cafile=certifi.where())
@@ -424,7 +508,7 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                         continue
 
                     # 3. Process Entries (Newest first usually)
-                    for entry in feed.entries[:10]: # Verifica últimos 10 posts (evita perder em canais ativos)
+                    for entry in feed.entries:  # Sem limite de publicações por rodada
                         link = getattr(entry, "link", "")
                         title = getattr(entry, "title", "No Title")
                         
@@ -439,6 +523,15 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                             continue
                             
                         summary = getattr(entry, "summary", "")
+
+                        pub_dt = _extract_entry_datetime(entry)
+                        if pub_dt is None:
+                            log.debug(f"⏭️ [DATE] Item sem data, ignorado: {title[:80]}...")
+                            continue
+
+                        if pub_dt < window_start or pub_dt > now_utc:
+                            log.debug(f"⏭️ [DATE] Fora da janela (hoje/ontem): {title[:80]}... | pub={pub_dt.isoformat()}")
+                            continue
                         
                         # Determine media type
                         is_media = "youtube.com" in link or "youtu.be" in link or "twitch.tv" in link
@@ -491,19 +584,7 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                                 if is_media and entry_type == "video":
                                     embed_title = f"▶️ {embed_title}"
                                 
-                                from datetime import timezone
-                                pub_dt = None
-                                try:
-                                    st = getattr(entry, "published_parsed", None) or getattr(entry, "updated_parsed", None)
-                                    if st:
-                                        # st is struct_time (year, month, day, hour, min, sec...)
-                                        pub_dt = datetime(*st[:6], tzinfo=timezone.utc)
-                                except Exception:
-                                    pass
-
-                                embed_ts = pub_dt if pub_dt else datetime.now()
-                                if getattr(embed_ts, 'tzinfo', None) is None:
-                                    embed_ts = embed_ts.replace(tzinfo=timezone.utc)
+                                embed_ts = pub_dt
                                 
                                 postado_str = _format_publication_line(pub_dt)
 
@@ -534,20 +615,16 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                                 footer_text = t.get('embed.source', lang=target_lang, source=source_domain)
                                 embed.set_footer(text=footer_text)
                                 
-                                if not is_media and hasattr(entry, "media_thumbnail") and entry.media_thumbnail:
+                                best_image_url = _extract_best_image_url(entry, link, summary)
+                                if best_image_url:
                                     try:
-                                        thumb_url = entry.media_thumbnail[0].get("url")
-                                        if thumb_url:
-                                            embed.set_thumbnail(url=thumb_url)
-                                    except (IndexError, AttributeError, KeyError, TypeError) as e:
-                                        log.debug(f"⚠️ [EMBED] Erro ao adicionar thumbnail: {e}")
+                                        if not is_media:
+                                            # Para notícia textual, imagem grande melhora visualização do card
+                                            embed.set_image(url=best_image_url)
+                                        else:
+                                            embed.set_thumbnail(url=best_image_url)
                                     except Exception as e:
-                                        log.warning(f"⚠️ [EMBED] Erro inesperado ao processar thumbnail: {e}")
-                                elif is_media and ("youtube.com" in link or "youtu.be" in link):
-                                    # Thumbnail manual para YouTube (garante que o embed customizado fique bonito)
-                                    yt_thumb = _get_youtube_thumbnail(link)
-                                    if yt_thumb:
-                                        embed.set_thumbnail(url=yt_thumb)
+                                        log.debug(f"⚠️ [EMBED] Falha ao aplicar imagem do item: {e}")
 
                                 # Botões: apenas http(s). mailto: quebra a API (50035) — nunca adicionar.
                                 view = _build_news_share_view(link, t_translated)
