@@ -344,7 +344,7 @@ def _extract_best_image_url(entry: Any, link: str, summary: str) -> str:
         pass
 
     if html_blob:
-        m = re.search(r'<img[^>]+src=["']([^"']+)["']', html_blob, re.IGNORECASE)
+        m = re.search(r"<img[^>]+src=[\"']([^\"']+)[\"']", html_blob, re.IGNORECASE)
         if m:
             src = m.group(1).strip()
             if src.startswith(("http://", "https://")):
