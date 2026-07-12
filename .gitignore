@@ -41,11 +41,12 @@ env/
 logs/
 *.log
 
-# Data files (manter estrutura mas não commitar dados sensíveis)
-# config.json  # Descomente se não quiser commitar config
-# history.json  # Descomente se não quiser commitar histórico
-# state.json  # Descomente se não quiser commitar estado
-# audit.json  # Descomente se não quiser commitar auditoria
+# Data files (estado de runtime — NÃO versionar; usar *.example para template)
+config.json
+history.json
+state.json
+audit.json
+*.tmp
 
 # Assets importantes - NÃO IGNORAR (comentado para garantir que sejam commitados)
 # icon.png

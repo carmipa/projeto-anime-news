@@ -52,7 +52,7 @@ async def api_stats(request):
         "last_scan": last_scan
     })
 
-async def start_web_server(host='0.0.0.0', port=8080):
+async def start_web_server(host='127.0.0.1', port=8080):
     """Inicia o servidor web aiohttp."""
     try:
         app = web.Application()

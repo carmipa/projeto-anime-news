@@ -1,0 +1,11 @@
+{
+  "000000000000000000": {
+    "filters": [
+      "anime",
+      "news",
+      "music"
+    ],
+    "channel_id": 000000000000000000,
+    "language": "pt_BR"
+  }
+}

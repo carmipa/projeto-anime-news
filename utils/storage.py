@@ -49,14 +49,27 @@ def load_json_safe(filepath: str, default: Any) -> Any:
 
 def save_json_safe(filepath: str, data: Any) -> None:
     """
-    Salva JSON com indentação; em erro, loga e segue.
-    
+    Salva JSON de forma atômica; em erro, loga e segue.
+
+    Escreve num arquivo temporário no mesmo diretório e faz os.replace
+    (rename atômico), evitando corromper o arquivo se o processo cair no
+    meio da escrita.
+
     Args:
         filepath: Caminho do arquivo JSON
         data: Dados a salvar
     """
+    tmp_path = f"{filepath}.tmp"
     try:
-        with open(filepath, "w", encoding="utf-8") as f:
+        with open(tmp_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, filepath)
     except Exception as e:
         log.error(f"Falha ao salvar '{filepath}': {e}")
+        try:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+        except OSError:
+            pass
