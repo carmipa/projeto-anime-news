@@ -15,7 +15,7 @@ from urllib.parse import urlparse, urljoin
 import discord
 from discord.ext import tasks
 
-from settings import LOOP_MINUTES
+from settings import LOOP_MINUTES, FEED_CONCURRENCY
 from utils.storage import p, load_json_safe, save_json_safe
 from utils.html import clean_html
 from utils.cache import load_http_state, save_http_state, get_cache_headers, update_cache_state, cleanup_state
@@ -401,6 +401,90 @@ def _log_next_run(when: datetime | None = None):
         when = datetime.now() + timedelta(minutes=LOOP_MINUTES)
     log.info(f"⏳ Próxima varredura: {when.strftime('%H:%M:%S')}")
 
+
+# Sentinela para "feed não modificado" (HTTP 304), distinto de None (erro).
+_CACHE_HIT = object()
+
+
+async def _fetch_and_parse(session, link_url, http_state, ssl_ctx):
+    """
+    Busca e faz o parse de UM feed. Seguro para rodar concorrentemente
+    (só faz operações sync sobre http_state entre awaits, sem interleaving).
+
+    Retorna (link_url, feed) em sucesso, (link_url, _CACHE_HIT) em 304,
+    ou (link_url, None) em qualquer falha (já logada/auditada). Nunca levanta,
+    para não abortar o asyncio.gather das outras fontes.
+    """
+    try:
+        # Validação de segurança da URL (SSRF)
+        try:
+            validated_url = validate_url(link_url)
+        except Exception as e:
+            log.warning(f"⚠️ [SECURITY] URL inválida ignorada: {link_url} - {e}")
+            audit_logger.log(
+                AuditEventType.SECURITY_CHECK_FAILED,
+                severity=AuditSeverity.WARNING,
+                details={"url": link_url, "reason": str(e)}
+            )
+            return link_url, None
+
+        # 1. Fetch com Cache Headers (com retry)
+        async def fetch_feed():
+            headers = get_cache_headers(validated_url, http_state)
+            async with session.get(validated_url, headers=headers, ssl=ssl_ctx, timeout=20) as resp:
+                if resp.status == 304:
+                    return None, resp  # Cache hit
+                if resp.status != 200:
+                    raise NetworkError(f"HTTP {resp.status} para {validated_url}")
+                content = await resp.read()
+                return content, resp
+
+        try:
+            content, resp = await retry_async(fetch_feed, config=HTTP_RETRY_CONFIG)
+            if content is None:  # Cache hit (304)
+                return link_url, _CACHE_HIT
+            update_cache_state(validated_url, resp.headers, http_state)
+        except NetworkError as e:
+            log.warning(f"⚠️ [HTTP] Erro ao buscar feed {validated_url}: {e}")
+            audit_logger.log(
+                AuditEventType.SCAN_FAILED,
+                severity=AuditSeverity.WARNING,
+                details={"url": validated_url, "error": str(e)}
+            )
+            return link_url, None
+
+        # 2. Parse Feed (em thread separada, com retry)
+        async def parse_feed():
+            feed = await asyncio.to_thread(feedparser.parse, content)
+            if feed.bozo:
+                raise FeedParseError(f"Erro parsing {validated_url}: {feed.bozo_exception}")
+            return feed
+
+        try:
+            feed = await retry_async(parse_feed, config=FEED_PARSE_RETRY_CONFIG)
+        except FeedParseError as e:
+            log.debug(f"🤡 [PARSER] Erro parsing {validated_url}: {e}")
+            return link_url, None
+
+        return link_url, feed
+
+    except Exception as e:
+        log_with_context(
+            log,
+            logging.ERROR,
+            f"Erro buscando feed: {e}",
+            details={"url": link_url},
+            event_type="SCAN_ERROR",
+            exc_info=e
+        )
+        audit_logger.log(
+            AuditEventType.SCAN_FAILED,
+            severity=AuditSeverity.ERROR,
+            details={"url": link_url, "error": str(e), "error_type": type(e).__name__}
+        )
+        return link_url, None
+
+
 async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
     """
     Executa uma rodada de verificação de feeds.
@@ -442,68 +526,27 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
         ssl_ctx = ssl.create_default_context(cafile=certifi.where())
 
         async with aiohttp.ClientSession() as session:
-            for link_url in urls:
+            # === Fase 1: FETCH + PARSE concorrente (bounded por semaforo) ===
+            # Antes cada feed era buscado em serie (gargalo). Agora ate
+            # FEED_CONCURRENCY feeds sao buscados/parseados em paralelo.
+            sem = asyncio.Semaphore(FEED_CONCURRENCY)
+
+            async def _bounded_fetch(url):
+                async with sem:
+                    return await _fetch_and_parse(session, url, http_state, ssl_ctx)
+
+            fetched = await asyncio.gather(*[_bounded_fetch(u) for u in urls])
+            log.info(f"📥 [FETCH] {len(fetched)} fontes processadas (concorrencia={FEED_CONCURRENCY}).")
+
+            # === Fase 2: processa entradas e envia ao Discord em SERIE ===
+            # (mantem ordem deterministica e evita rate-limit do Discord)
+            for link_url, feed in fetched:
+                if feed is _CACHE_HIT:
+                    cache_hits += 1
+                    continue
+                if feed is None:
+                    continue  # erro de fetch/parse ja logado na Fase 1
                 try:
-                    # Pequena pausa para garantir que o event loop do Discord respire e não dê timeout
-                    await asyncio.sleep(0.1)
-                    
-                    # Validação de segurança da URL
-                    try:
-                        validated_url = validate_url(link_url)
-                    except Exception as e:
-                        log.warning(f"⚠️ [SECURITY] URL inválida ignorada: {link_url} - {e}")
-                        audit_logger.log(
-                            AuditEventType.SECURITY_CHECK_FAILED,
-                            severity=AuditSeverity.WARNING,
-                            details={"url": link_url, "reason": str(e)}
-                        )
-                        continue
-                    
-                    # 1. Fetch with Cache Headers (com retry)
-                    async def fetch_feed():
-                        headers = get_cache_headers(validated_url, http_state)
-                        async with session.get(validated_url, headers=headers, ssl=ssl_ctx, timeout=20) as resp:
-                            if resp.status == 304:
-                                return None, resp  # Cache hit
-                            
-                            if resp.status != 200:
-                                raise NetworkError(f"HTTP {resp.status} para {validated_url}")
-                            
-                            content = await resp.read()
-                            return content, resp
-                    
-                    try:
-                        content, resp = await retry_async(fetch_feed, config=HTTP_RETRY_CONFIG)
-                        
-                        if content is None:  # Cache hit (304)
-                            cache_hits += 1
-                            continue
-                        
-                        # Update cache state (ETag/Last-Modified)
-                        update_cache_state(validated_url, resp.headers, http_state)
-                    
-                    except NetworkError as e:
-                        log.warning(f"⚠️ [HTTP] Erro ao buscar feed {validated_url}: {e}")
-                        audit_logger.log(
-                            AuditEventType.SCAN_FAILED,
-                            severity=AuditSeverity.WARNING,
-                            details={"url": validated_url, "error": str(e)}
-                        )
-                        continue
-
-                    # 2. Parse Feed (com retry e em thread separada para não travar o loop do Discord)
-                    async def parse_feed():
-                        feed = await asyncio.to_thread(feedparser.parse, content)
-                        if feed.bozo:
-                            raise FeedParseError(f"Erro parsing {validated_url}: {feed.bozo_exception}")
-                        return feed
-                    
-                    try:
-                        feed = await retry_async(parse_feed, config=FEED_PARSE_RETRY_CONFIG)
-                    except FeedParseError as e:
-                        log.debug(f"🤡 [PARSER] Erro parsing {validated_url}: {e}")
-                        continue
-
                     if not feed.entries:
                         continue
 
