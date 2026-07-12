@@ -28,8 +28,17 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copia todo o código do projeto
 COPY . .
 
-# Cria diretórios para dados persistentes (serão volumes)
-RUN mkdir -p /app/data /app/logs
+# Cria diretórios para dados persistentes (serão volumes) e um usuário não-root.
+# UID/GID 1000 para compatibilidade com bind mounts do host (o primeiro usuário
+# Linux costuma ser 1000). Se os arquivos montados do host tiverem outro dono,
+# ajuste a propriedade no host ou use volumes nomeados.
+RUN mkdir -p /app/data /app/logs \
+    && groupadd -g 1000 appuser \
+    && useradd -m -u 1000 -g appuser appuser \
+    && chown -R appuser:appuser /app
+
+# Roda como usuário não-root (segurança: evita root dentro do container)
+USER appuser
 
 # Healthcheck (verifica se bot está rodando)
 HEALTHCHECK --interval=60s --timeout=10s --start-period=30s --retries=3 \
