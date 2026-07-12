@@ -46,7 +46,11 @@ GUILD_ID = "417746665219424277"
     ("SPY×FAMILY Season 3 MISSION:50", "Spy x Family anime", "https://www.youtube.com/feeds/videos.xml?channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q", True),
     ("CAPTAIN TSUBASA 2: WORLD FIGHTERS - Announcement Trailer", "Soccer anime", "https://rss.feed/test", True),
     ("Explained in 4 minutes! The Culling Game Strategy - Jujutsu Kaisen", "JJK Season 3", "https://www.youtube.com/feeds/videos.xml?channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q", True),
-    ("My Melody & Kuromi｜制作ドキュメンタリー", "Sanrio anime documentary", "https://rss.feed/test", True),
+    # "documentary" está na BLACKLIST global (bloqueia docuseries/reality), então
+    # mesmo com "anime" no texto o item é barrado. Comportamento intencional atual:
+    # se um dia quiser liberar documentários DE anime, remova "documentary"/"documentário"
+    # da BLACKLIST em core/filters.py (o gate de termo estrito ainda filtra o resto).
+    ("My Melody & Kuromi｜制作ドキュメンタリー", "Sanrio anime documentary", "https://rss.feed/test", False),
 ])
 def test_filter_reported_cases(title, summary, source, expected):
     result = match_intel(GUILD_ID, title, summary, CONFIG, source=source)

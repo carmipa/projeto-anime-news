@@ -13,35 +13,46 @@ def test_config_files_exist():
     assert os.path.exists("main.py"), "main.py deve existir"
 
 
+def _iter_source_urls(data):
+    """Achata sources.json ({categoria: {subcategoria: [urls]}}) numa lista de URLs.
+    Mesmo formato que core.scanner.load_sources consome."""
+    urls = []
+    for category in data.values():
+        if isinstance(category, dict):
+            for subcat in category.values():
+                if isinstance(subcat, list):
+                    urls.extend(subcat)
+        elif isinstance(category, list):
+            urls.extend(category)
+    return urls
+
+
 def test_sources_json_structure():
-    """Verifica estrutura básica do sources.json."""
+    """Verifica estrutura de sources.json: dict de categorias com listas de URLs."""
     with open("sources.json", "r", encoding="utf-8") as f:
         data = json.load(f)
-    
+
     assert isinstance(data, dict), "sources.json deve ser um objeto"
-    
-    # Deve ter pelo menos rss_feeds ou youtube_feeds
-    has_feeds = "rss_feeds" in data or "youtube_feeds" in data
-    assert has_feeds, "Deve ter pelo menos rss_feeds ou youtube_feeds"
-    
-    # Se tiver rss_feeds, deve ser uma lista
-    if "rss_feeds" in data:
-        assert isinstance(data["rss_feeds"], list), "rss_feeds deve ser uma lista"
-    
-    # Se tiver youtube_feeds, deve ser uma lista
-    if "youtube_feeds" in data:
-        assert isinstance(data["youtube_feeds"], list), "youtube_feeds deve ser uma lista"
+
+    # Deve ter pelo menos uma categoria (ex: youtube_feeds, official_sites)
+    assert data, "sources.json não pode estar vazio"
+
+    # Cada categoria deve ser dict (subcategorias) ou list (URLs diretas)
+    for name, category in data.items():
+        assert isinstance(category, (dict, list)), f"Categoria '{name}' deve ser dict ou list"
+
+    # Deve resultar em pelo menos uma URL utilizável
+    assert _iter_source_urls(data), "sources.json deve conter pelo menos uma URL"
 
 
 def test_no_invalid_youtube_urls():
-    """Verifica que não há URLs do YouTube com @ (formato inválido)."""
+    """Verifica que não há URLs do YouTube com @ (formato inválido: handle, não feed Atom)."""
     with open("sources.json", "r", encoding="utf-8") as f:
         data = json.load(f)
-    
-    youtube_feeds = data.get("youtube_feeds", [])
-    for url in youtube_feeds:
-        # Não deve ter @ (que seria um handle, não um feed Atom)
-        assert "@" not in url, f"YouTube URL inválida (use channel_id): {url}"
+
+    for url in _iter_source_urls(data):
+        if "youtube.com" in url or "youtu.be" in url:
+            assert "@" not in url, f"YouTube URL inválida (use channel_id): {url}"
 
 
 def test_requirements_has_dependencies():
@@ -60,14 +71,14 @@ def test_requirements_has_dependencies():
     assert "aiohttp" in content, "requirements.txt deve incluir aiohttp"
 
 
-def test_main_has_ssl_fix():
-    """Verifica que main.py usa certifi para SSL."""
-    with open("main.py", "r", encoding="utf-8") as f:
+def test_scanner_has_ssl_fix():
+    """Verifica que o scanner usa certifi para SSL (o contexto SSL vive em core/scanner.py)."""
+    with open(os.path.join("core", "scanner.py"), "r", encoding="utf-8") as f:
         content = f.read()
-    
+
     # Deve usar certifi
-    assert "certifi" in content, "main.py deve importar certifi para SSL seguro"
-    
+    assert "certifi" in content, "core/scanner.py deve usar certifi para SSL seguro"
+
     # NÃO deve ter CERT_NONE (inseguro)
-    assert "CERT_NONE" not in content, "main.py não deve usar CERT_NONE (inseguro)"
+    assert "CERT_NONE" not in content, "core/scanner.py não deve usar CERT_NONE (inseguro)"
 
