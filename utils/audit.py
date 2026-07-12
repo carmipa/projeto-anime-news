@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List
 from enum import Enum
 
-from utils.storage import p, load_json_safe, save_json_safe
+from utils.storage import p, load_json_safe
 from utils.logger import log
 
 
@@ -56,18 +56,74 @@ class AuditSeverity(Enum):
 
 
 class AuditLogger:
-    """Sistema de auditoria estruturado."""
-    
-    def __init__(self, audit_file: str = "audit.json"):
+    """Sistema de auditoria estruturado (armazenamento em JSONL: 1 evento por linha)."""
+
+    def __init__(self, audit_file: str = "audit.jsonl"):
         self.audit_file = p(audit_file)
         self.max_entries = 10000  # Mantém últimos 10k eventos
+        self._trim_every = 1000   # a cada N escritas, apara para max_entries (amortizado)
+        self._writes_since_trim = 0
+        self._migrate_legacy_json()
         self._ensure_audit_file()
-    
+
     def _ensure_audit_file(self):
-        """Garante que o arquivo de auditoria existe."""
+        """Garante que o arquivo de auditoria existe (vazio)."""
         if not os.path.exists(self.audit_file):
-            save_json_safe(self.audit_file, [])
-    
+            open(self.audit_file, "a", encoding="utf-8").close()
+
+    def _migrate_legacy_json(self):
+        """Migra audit.json (array) legado para audit.jsonl, uma única vez."""
+        if os.path.exists(self.audit_file):
+            return
+        legacy = p("audit.json")
+        if not os.path.exists(legacy):
+            return
+        try:
+            data = load_json_safe(legacy, [])
+            if isinstance(data, list) and data:
+                with open(self.audit_file, "w", encoding="utf-8") as f:
+                    for ev in data:
+                        f.write(json.dumps(ev, ensure_ascii=False) + "\n")
+                log.info(f"[AUDIT] Migrados {len(data)} eventos de audit.json para audit.jsonl")
+        except Exception as e:
+            log.warning(f"[AUDIT] Falha ao migrar audit.json legado: {e}")
+
+    def _read_all(self) -> List[Dict[str, Any]]:
+        """Lê todos os eventos do JSONL (ignora linhas corrompidas)."""
+        events: List[Dict[str, Any]] = []
+        if not os.path.exists(self.audit_file):
+            return events
+        try:
+            with open(self.audit_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        obj = json.loads(line)
+                        if isinstance(obj, dict):
+                            events.append(obj)
+                    except json.JSONDecodeError:
+                        continue
+        except Exception as e:
+            log.error(f"[AUDIT] Falha ao ler {self.audit_file}: {e}")
+        return events
+
+    def _trim(self):
+        """Mantém apenas os últimos max_entries eventos (reescrita atômica ocasional)."""
+        try:
+            events = self._read_all()
+            if len(events) <= self.max_entries:
+                return
+            keep = events[-self.max_entries:]
+            tmp = f"{self.audit_file}.tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                for ev in keep:
+                    f.write(json.dumps(ev, ensure_ascii=False) + "\n")
+            os.replace(tmp, self.audit_file)
+        except Exception as e:
+            log.warning(f"[AUDIT] Falha ao aparar {self.audit_file}: {e}")
+
     def log(
         self,
         event_type: AuditEventType,
@@ -78,8 +134,8 @@ class AuditLogger:
         metadata: Optional[Dict[str, Any]] = None
     ):
         """
-        Registra um evento de auditoria.
-        
+        Registra um evento de auditoria (append O(1) em JSONL).
+
         Args:
             event_type: Tipo do evento
             severity: Severidade
@@ -97,22 +153,20 @@ class AuditLogger:
             "details": details or {},
             "metadata": metadata or {}
         }
-        
-        # Carrega eventos existentes
-        events = load_json_safe(self.audit_file, [])
-        if not isinstance(events, list):
-            events = []
-        
-        # Adiciona novo evento
-        events.append(event)
-        
-        # Mantém apenas últimos N eventos
-        if len(events) > self.max_entries:
-            events = events[-self.max_entries:]
-        
-        # Salva
-        save_json_safe(self.audit_file, events)
-        
+
+        # Append de uma única linha (não reescreve o arquivo inteiro)
+        try:
+            with open(self.audit_file, "a", encoding="utf-8") as f:
+                f.write(json.dumps(event, ensure_ascii=False) + "\n")
+        except Exception as e:
+            log.error(f"[AUDIT] Falha ao gravar evento: {e}")
+
+        # Apara periodicamente para não crescer indefinidamente (amortizado O(1))
+        self._writes_since_trim += 1
+        if self._writes_since_trim >= self._trim_every:
+            self._writes_since_trim = 0
+            self._trim()
+
         # Log também no logger padrão
         log_msg = (
             f"[AUDIT] {event_type.value} | "
@@ -121,7 +175,7 @@ class AuditLogger:
             f"Guild: {guild_id} | "
             f"Details: {details}"
         )
-        
+
         if severity == AuditSeverity.CRITICAL:
             log.critical(log_msg)
         elif severity == AuditSeverity.ERROR:
@@ -154,10 +208,8 @@ class AuditLogger:
         Returns:
             Lista de eventos
         """
-        events = load_json_safe(self.audit_file, [])
-        if not isinstance(events, list):
-            return []
-        
+        events = self._read_all()
+
         filtered = []
         for event in events:
             # Filtros

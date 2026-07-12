@@ -46,6 +46,7 @@ config.json
 history.json
 state.json
 audit.json
+audit.jsonl
 *.tmp
 
 # Assets importantes - NÃO IGNORAR (comentado para garantir que sejam commitados)
