@@ -4,12 +4,18 @@ Translator utilities - Localization and Google Translate wrapper.
 import json
 import logging
 import asyncio
+from collections import OrderedDict
 from typing import Dict, Any, Optional
 from deep_translator import GoogleTranslator
 
 from utils.storage import p, load_json_safe
 
 log = logging.getLogger("AnimeBotIntel")
+
+# Cache LRU em memória para traduções: evita rehit no Google Translate para
+# textos repetidos (boilerplates de feed, mesmo item em varreduras distintas).
+_TRANSLATION_CACHE: "OrderedDict[tuple, str]" = OrderedDict()
+_TRANSLATION_CACHE_MAX = 2000
 
 
 class Translator:
@@ -109,22 +115,35 @@ async def translate_to_target(text: str, target_lang: str) -> str:
     """
     if not text:
         return ""
-        
+
+    # Mapeia códigos internos (pt_BR) para códigos Google (pt)
+    google_map = {
+        'pt_BR': 'pt',
+        'en_US': 'en',
+        'es_ES': 'es',
+        'it_IT': 'it'
+    }
+    target = google_map.get(target_lang, 'en')
+
+    # Cache hit: retorna sem chamar a rede
+    cache_key = (target, text)
+    cached = _TRANSLATION_CACHE.get(cache_key)
+    if cached is not None:
+        _TRANSLATION_CACHE.move_to_end(cache_key)
+        return cached
+
     try:
-        # Mapeia códigos internos (pt_BR) para códigos Google (pt)
-        google_map = {
-            'pt_BR': 'pt',
-            'en_US': 'en',
-            'es_ES': 'es',
-            'it_IT': 'it'
-        }
-        target = google_map.get(target_lang, 'en')
-        
         loop = asyncio.get_running_loop()
         trad = await loop.run_in_executor(
             None,
             lambda: GoogleTranslator(source="auto", target=target).translate(text)
         )
+        # Armazena no cache (bounded / LRU)
+        if trad:
+            _TRANSLATION_CACHE[cache_key] = trad
+            _TRANSLATION_CACHE.move_to_end(cache_key)
+            if len(_TRANSLATION_CACHE) > _TRANSLATION_CACHE_MAX:
+                _TRANSLATION_CACHE.popitem(last=False)
         return trad
     except Exception as e:
         return text
