@@ -163,6 +163,26 @@ FILTER_OPTIONS = {
 # HELPER FUNCTIONS
 # =========================================================
 
+# Cache de matchers por keyword: compila a regex de cada termo UMA vez.
+# ("regex", <padrão compilado>) para palavras alfanuméricas (word boundaries + plural),
+# ("substr", <termo lower>) para frases/termos com caracteres especiais (busca simples).
+_KEYWORD_MATCHER_CACHE: Dict[str, tuple] = {}
+
+
+def _matcher_for(kw: str) -> tuple:
+    cached = _KEYWORD_MATCHER_CACHE.get(kw)
+    if cached is not None:
+        return cached
+    kw_lower = kw.lower()
+    if kw_lower.replace(" ", "").replace("-", "").isalnum():
+        pattern = re.compile(r'\b' + re.escape(kw_lower) + r's?\b', re.IGNORECASE)
+        matcher = ("regex", pattern)
+    else:
+        matcher = ("substr", kw_lower)
+    _KEYWORD_MATCHER_CACHE[kw] = matcher
+    return matcher
+
+
 def _contains_any(text: str, keywords: List[str]) -> str:
     """Verifica se alguma keyword está presente no texto.
     Retorna a keyword que bateu (ou "" se não bateu).
@@ -172,19 +192,17 @@ def _contains_any(text: str, keywords: List[str]) -> str:
         return ""
 
     text_lower = text.lower()
-    
-    # Primeiro tenta com regex para palavras completas (quando possível)
+
     for kw in keywords:
-        kw_lower = kw.lower()
-        # Para palavras simples, usa word boundaries
-        if kw_lower.replace(" ", "").replace("-", "").isalnum():
-            pattern = r'\b' + re.escape(kw_lower) + r's?\b'
-            if re.search(pattern, text_lower, re.IGNORECASE):
+        kind, val = _matcher_for(kw)
+        # Para palavras simples, usa word boundaries (regex pré-compilada)
+        if kind == "regex":
+            if val.search(text_lower):
                 return kw
         # Para frases ou termos com caracteres especiais, usa busca simples
-        elif kw_lower in text_lower:
+        elif val in text_lower:
             return kw
-    
+
     return ""
 
 
