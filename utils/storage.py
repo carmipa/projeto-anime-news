@@ -47,13 +47,23 @@ def load_json_safe(filepath: str, default: Any) -> Any:
         return default
 
 
+def _write_json_direct(filepath: str, data: Any) -> None:
+    """Escrita direta (não-atômica) no arquivo alvo."""
+    with open(filepath, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+
 def save_json_safe(filepath: str, data: Any) -> None:
     """
-    Salva JSON de forma atômica; em erro, loga e segue.
+    Salva JSON de forma atômica (tmp + os.replace); em erro, loga e segue.
 
     Escreve num arquivo temporário no mesmo diretório e faz os.replace
     (rename atômico), evitando corromper o arquivo se o processo cair no
     meio da escrita.
+
+    Fallback: quando o rename atômico não é possível — ex.: o alvo é um bind
+    mount de arquivo único no Docker (./config.json:/app/config.json), que gera
+    EXDEV/EBUSY ao renomear sobre o mount point — faz escrita direta no arquivo.
 
     Args:
         filepath: Caminho do arquivo JSON
@@ -65,7 +75,16 @@ def save_json_safe(filepath: str, data: Any) -> None:
             json.dump(data, f, indent=2, ensure_ascii=False)
             f.flush()
             os.fsync(f.fileno())
-        os.replace(tmp_path, filepath)
+        try:
+            os.replace(tmp_path, filepath)
+        except OSError as e:
+            # Rename atômico indisponível (bind mount de arquivo único etc.)
+            log.warning(f"Escrita atômica indisponível para '{filepath}' ({e}); usando escrita direta.")
+            _write_json_direct(filepath, data)
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
     except Exception as e:
         log.error(f"Falha ao salvar '{filepath}': {e}")
         try:
