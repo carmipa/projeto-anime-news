@@ -436,11 +436,21 @@ Edite `config.json`:
     "channel_id": 123456789,
     "filters": ["anime", "news", "music"],
     "language": "pt_BR",
-    "enabled": true,
-    "custom_keywords_block": ["games", "figures"]
+    "enabled": true
   }
 }
 ```
+
+Campos aceitos: `channel_id` e `filters` (obrigatórios), `language` e
+`enabled`. Valores de `filters`: `anime`, `news`, `music`, `games`, `filmes`,
+`todos`. Nomes antigos (`musica`, `filme`, `gunpla`) são traduzidos
+automaticamente para os atuais — um servidor configurado há meses não
+emudece por causa de renomeação.
+
+> `custom_keywords_block` estava documentado aqui mas **nenhum código o lê**:
+> quem o configurasse ficava a achar que tinha um bloqueio que não existia.
+> Removido em 2026-08-01. Para bloquear termos, edite as listas em
+> `core/filters.py`.
 
 **Como obter `guild_id` e `channel_id`?**
 
@@ -529,77 +539,63 @@ O dashboard mostra em tempo real:
 O sistema usa **4 camadas de filtro** em cascata:
 
 ```
-Entrada
+Entrada (título + resumo do item)
   │
-  ├─► 1️⃣ BLACKLIST KEYWORDS (Regex)
-  │   └─ Bloqueia: "game", "ps5", "t-shirt", etc
+  ├─► 1️⃣ BLACKLIST  (título + resumo)
+  │   └─ Esportes, reality, live-action, k-pop, gameplay, roupas
   │
-  ├─► 2️⃣ WHITELIST KEYWORDS
-  │   └─ Permite: "anime", "episode", "trailer", etc
+  ├─► 2️⃣ BLACKLIST_TITULO  (só o título)
+  │   └─ Merch e colecionáveis: figure, nendoroid, statue, gunpla…
+  │      Só o título decide, porque metade dos canais oficiais tem
+  │      "check our merch store" no rodapé da descrição.
   │
-  ├─► 3️⃣ CATEGORIA ATIVA?
-  │   └─ Verifica config.json[guild]["filters"]
+  ├─► 3️⃣ UNTRUSTED_BLACKLIST  (só se a fonte for mista)
+  │   └─ Fonte mista = `"untrusted": true` no sources.json
   │
-  └─► 4️⃣ DEDUPLICAÇÃO
+  ├─► 4️⃣ CATEGORIA ATIVA?  →  CAT_MAP
+  │   └─ Verifica config.json[guild]["filters"]; "todos" salta este passo
+  │
+  ├─► 5️⃣ TERMO ESTRITO DE ANIME  →  STRICT_ANIME_KEYWORDS
+  │   └─ Fonte confiável: pode estar no título OU no resumo
+  │      Fonte mista: tem de estar no TÍTULO
+  │
+  └─► 6️⃣ DEDUPLICAÇÃO
       └─ Checa history.json
 
 Resultado: ✅ Aprovado ou ❌ Bloqueado
 ```
 
-### 🚫 Termos Bloqueados Automaticamente
+As listas vivem em [`core/filters.py`](core/filters.py) e os nomes acima são os
+nomes reais das constantes. Termos em japonês são casados por **substring** —
+`\b` não funciona em japonês, que não separa palavras por espaço.
 
-#### 🎮 Games & Consoles
+### 🚫 O que é bloqueado
 
-```
-gameplay, videogame, ps5, ps4, xbox, nintendo
-switch, steam, playstation, game review, gaming
-```
+| Grupo | Onde se aplica | Exemplos |
+|---|---|---|
+| Esportes / variedades | título + resumo | beisebol, 野球, 侍ジャパン, reality show, k-pop |
+| Live-action / dorama | título + resumo | live action, o namorado, green room, GRWM |
+| Gameplay | título + resumo | gameplay (vídeo de jogabilidade não é notícia de anime) |
+| Roupas | título + resumo | t-shirt, apparel, hoodie, clothing |
+| Merch e colecionáveis | **só o título** | figure, nendoroid, figma, statue, gunpla, merch |
 
-#### 🧸 Brinquedos & Merchandising
+### ✅ O que confirma que é anime
 
-```
-figure, statue, toy, model kit, collectible
-action figure, doll, diorama, merchandise, merch
-```
+`STRICT_ANIME_KEYWORDS` — termos que, sozinhos, provam o assunto: `anime`,
+`manga`, `アニメ`, `劇場版`, `声優`, nomes de estúdio (`mappa`, `ufotable`,
+`crunchyroll`, `wit studio`) e franquias (`demon slayer`, `鬼滅の刃`,
+`one piece`, `chainsaw man`…).
 
-#### 👕 Vestuário
+`trailer`, `teaser` e `episode` **não** entram nesta lista de propósito:
+existem em qualquer mídia e deixariam passar conteúdo não-anime.
 
-```
-t-shirt, shirt, apparel, clothing, fashion, dress
-hoodie, jacket, sneaker, shoes, wear, outfit
-```
+### 🔧 Customizar filtros
 
-### ✅ Termos Que Sempre Passam
-
-```
-anime, manga, episode, trailer, pv, teaser
-opening, ending, ost, soundtrack, official
-announcement, news, release, series, season
-```
-
-### 🔧 Customizar Filtros
-
-Edite `core/filters.py`:
-
-```python
-BLACKLIST_KEYWORDS = [
-    # Games & Consoles
-    'gameplay', 'videogame', 'ps5', 'xbox',
-    
-    # Merch
-    'figure', 'statue', 'toy',
-    
-    # Roupas
-    't-shirt', 'apparel', 'clothing',
-    
-    # Adicione seus próprios
-    'seu_termo_aqui', 'outro_termo'
-]
-
-WHITELIST_KEYWORDS = [
-    'anime', 'episode', 'trailer', 'ost'
-]
-```
+Edite as listas em `core/filters.py` (`BLACKLIST`, `BLACKLIST_TITULO`,
+`UNTRUSTED_BLACKLIST`, `STRICT_ANIME_KEYWORDS`, `CAT_MAP`) e rode
+`python -m pytest tests/test_filtros_spec.py` — esse ficheiro é a
+especificação executável do filtro e falha se uma alteração quebrar um caso
+conhecido.
 
 ---
 

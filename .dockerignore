@@ -40,6 +40,8 @@ logs/
 config.json
 history.json
 state.json
+audit.json
+audit.jsonl
 
 # Documentação
 README.md

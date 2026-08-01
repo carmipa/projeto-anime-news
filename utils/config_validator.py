@@ -101,18 +101,29 @@ class ConfigValidator:
                 errors.append(f"Guild {guild_id_str}: channel_id deve ser numérico")
                 continue
             
-            # Valida filters
+            # Valida filters.
+            # A autoridade é core.filters (FILTER_OPTIONS + aliases legados);
+            # manter uma cópia da lista aqui foi o que fez "musica" ser
+            # inválido para o validador e válido para o filtro ao mesmo tempo.
             filters = guild_config.get("filters", [])
             if not isinstance(filters, list):
                 errors.append(f"Guild {guild_id_str}: filters deve ser uma lista")
                 continue
-            
-            valid_filters = {"anime", "news", "music", "games", "filmes", "todos"}
-            invalid_filters = [f for f in filters if f not in valid_filters]
-            if invalid_filters:
-                errors.append(f"Guild {guild_id_str}: filtros inválidos: {invalid_filters}")
-                continue
-            
+
+            from core.filters import normalize_filters
+            filters_normalizados = normalize_filters(filters)
+            descartados = [f for f in filters if f not in filters_normalizados]
+            if descartados:
+                errors.append(
+                    f"Guild {guild_id_str}: filtros desconhecidos ignorados: {descartados}"
+                )
+            if not filters_normalizados and filters:
+                errors.append(
+                    f"Guild {guild_id_str}: nenhum filtro válido sobrou — "
+                    f"este servidor não vai receber notícia nenhuma"
+                )
+            filters = filters_normalizados
+
             # Valida language
             language = guild_config.get("language", "pt_BR")
             valid_languages = {"pt_BR", "en_US", "es_ES", "it_IT"}

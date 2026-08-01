@@ -16,12 +16,13 @@ Abre o painel de controle pessoal onde você pode ver o status do bot e links r�
 
 ### `/status`
 
-Exibe estatísticas em tempo real do bot, incluindo:
+Exibe estatísticas em tempo real do bot:
 
 - Tempo de atividade (Uptime)
-- Total de notícias postadas
-- Notícias bloqueadas (filtros)
-- Memória e latência
+- Varreduras concluídas
+- Total de notícias enviadas
+- Cache hits (feeds que responderam 304)
+- Última varredura e próxima varredura (esta última lida do agendador real)
 
 ### `/ping`
 
@@ -82,22 +83,21 @@ Mostra **estatísticas agregadas de segurança e auditoria** dos últimos dias:
 
 ---
 
-## ⚡ Comandos Especiais (Dono do Bot)
+## ⚡ Comandos do Dono do Bot
 
-*(Apenas para o dono da aplicação)*
+### `!sync`
 
-### `/reload`
+Comando de prefixo (não é slash). Força a sincronização dos comandos slash,
+global e na guild atual. Só o dono da aplicação pode usar.
 
-Recarrega todas as extensões (cogs) do bot sem precisar reiniciar o processo. Útil após atualizações de código.
+---
 
-### `/logs [linhas]`
+## Não existem (removidos desta doc em 2026-08-01)
 
-Mostra as últimas linhas do log do sistema diretamente no chat.
+`/reload`, `/logs` e `/clear_history` estavam documentados aqui mas **nunca
+foram implementados** — não há código nenhum que os registe. Quem seguisse esta
+página tentava usar comandos inexistentes.
 
-- **Exemplo:** `/logs 20`
-
-### `/clear_history`
-
-Limpa o banco de dados local de notícias já postadas (`history.json`).
-
-- *Cuidado: Isso fará com que notícias antigas sejam repostadas na próxima varredura.*
+Para limpar o histórico hoje, pare o container e esvazie `history.json`
+(`echo '[]' > history.json`). Atenção: isso faz as notícias recentes serem
+repostadas na varredura seguinte, porque é esse ficheiro que evita repetição.

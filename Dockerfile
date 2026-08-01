@@ -40,9 +40,12 @@ RUN mkdir -p /app/data /app/logs \
 # Roda como usuário não-root (segurança: evita root dentro do container)
 USER appuser
 
-# Healthcheck (verifica se bot está rodando)
-HEALTHCHECK --interval=60s --timeout=10s --start-period=30s --retries=3 \
-    CMD python -c "import os; exit(0 if os.path.exists('/app/config.json') else 1)"
+# Healthcheck real: prova de vida do processo (resposta HTTP do dashboard) ou,
+# com o dashboard desligado, idade da última varredura. O anterior testava se
+# /app/config.json existia — um volume, portanto sempre presente: dizia
+# "healthy" mesmo com o bot travado.
+HEALTHCHECK --interval=60s --timeout=10s --start-period=120s --retries=3 \
+    CMD ["python", "/app/healthcheck.py"]
 
 # Comando de execução
 CMD ["python", "-u", "main.py"]

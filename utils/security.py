@@ -244,21 +244,24 @@ def sanitize_string(text: str, max_length: int = 2000, allow_html: bool = False)
 
 
 def validate_filters(filters: list) -> list:
-    """Valida lista de filtros."""
-    valid_filters = {'anime', 'news', 'music', 'games', 'filmes', 'todos'}
-    
+    """
+    PROPÓSITO DE NEGÓCIO: normalizar a lista de categorias que um servidor
+    assina, aceitando nomes antigos em vez de os descartar em silêncio.
+
+    INVARIANTES DO DOMÍNIO:
+    - A autoridade sobre o que é categoria válida é o `core.filters`, não uma
+      cópia da lista aqui. Duas listas divergem: esta rejeitava "musica"
+      enquanto o CAT_MAP tinha o alias e o filtro o aceitava.
+    - Nome legado é traduzido (musica → music), nome desconhecido é removido.
+
+    COMPORTAMENTO EM CASO DE FALHA: levanta ValidationError se o argumento não
+    for lista; devolve lista vazia se nada sobreviver à normalização.
+    """
     if not isinstance(filters, list):
         raise ValidationError("Filtros devem ser uma lista")
-    
-    validated = []
-    for f in filters:
-        if not isinstance(f, str):
-            continue
-        f_lower = f.lower()
-        if f_lower in valid_filters:
-            validated.append(f_lower)
-    
-    return validated
+
+    from core.filters import normalize_filters
+    return normalize_filters(filters)
 
 
 # =========================================================

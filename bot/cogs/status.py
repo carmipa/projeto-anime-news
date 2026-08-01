@@ -1,10 +1,11 @@
 """
 Status cog - /status command to show bot statistics.
 """
+from datetime import datetime
+
 import discord
 from discord.ext import commands
 from discord import app_commands
-from datetime import datetime, timedelta
 
 from core.stats import stats
 from settings import LOOP_MINUTES
@@ -18,11 +19,27 @@ class StatusCog(commands.Cog):
     
     @app_commands.command(name="status", description="Mostra estatísticas do bot AnimeBootNews.")
     async def status(self, interaction: discord.Interaction):
-        """Exibe estatísticas e status atual do bot."""
-        # Calcula próxima varredura
-        next_scan = datetime.now() + timedelta(minutes=LOOP_MINUTES)
-        next_scan_ts = int(next_scan.timestamp())
-        
+        """
+        PROPÓSITO DE NEGÓCIO: dar ao administrador do servidor a saúde real do
+        bot num relance — se está a varrer, quando varreu e quando volta.
+
+        INVARIANTES DO DOMÍNIO:
+        - "Próxima varredura" tem de vir do agendador de facto. Antes era
+          `agora + LOOP_MINUTES` calculado na hora do comando, ou seja, dizia
+          sempre "daqui a 12 horas" mesmo que a varredura fosse dali a um
+          minuto — informação errada com cara de precisa.
+
+        COMPORTAMENTO EM CASO DE FALHA: sem agendador vivo, mostra "agendador
+        parado" em vez de inventar um horário; o comando nunca levanta.
+        """
+        from core.scanner import loop_task
+
+        next_iteration = getattr(loop_task, "next_iteration", None) if loop_task else None
+        if next_iteration:
+            next_scan_str = f"<t:{int(next_iteration.timestamp())}:R>"
+        else:
+            next_scan_str = "⚠️ agendador parado"
+
         embed = discord.Embed(
             title="🛰️ Status do AnimeBootNews Bot",
             color=discord.Color.from_rgb(255, 0, 32),
@@ -52,6 +69,12 @@ class StatusCog(commands.Cog):
             value=f"{stats.cache_hits_total}",
             inline=True
         )
+
+        embed.add_field(
+            name="⚠️ Fontes com falha",
+            value=f"{stats.errors_count}",
+            inline=True
+        )
         
         if stats.last_scan_time:
             last_scan_str = f"<t:{int(stats.last_scan_time.timestamp())}:R>"
@@ -76,7 +99,7 @@ class StatusCog(commands.Cog):
         
         embed.add_field(
             name="⏳ Próxima Varredura",
-            value=f"<t:{next_scan_ts}:R>",
+            value=next_scan_str,
             inline=True
         )
         

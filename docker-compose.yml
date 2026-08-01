@@ -11,12 +11,23 @@ services:
       - TZ=America/Sao_Paulo
 
     # Volumes para persistir dados
+    # ATENÇÃO ao subir: bind mount de ARQUIVO que não existe no host faz o
+    # Docker criar um DIRETÓRIO com aquele nome, e aí o bot não consegue mais
+    # ler nem escrever. Antes do primeiro `up`, garanta que existem:
+    #   for f in config.json history.json state.json audit.jsonl; do
+    #     [ -f "$f" ] || echo '{}' > "$f"
+    #   done
+    #   [ -s audit.jsonl ] && : || : > audit.jsonl
     volumes:
       # Arquivos de configuração e histórico
       - ./config.json:/app/config.json
       - ./history.json:/app/history.json
       - ./state.json:/app/state.json
       - ./sources.json:/app/sources.json
+
+      # Trilha de auditoria: sem este volume, todo o histórico de eventos de
+      # segurança e configuração morre a cada `up --build`.
+      - ./audit.jsonl:/app/audit.jsonl
 
       # Timezone do host
       - /etc/localtime:/etc/localtime:ro
@@ -35,13 +46,14 @@ services:
     # Política de restart
     # unless-stopped: reinicia sempre, exceto se parado manualmente
 
-    # Healthcheck
+    # Healthcheck: ver healthcheck.py (prova de vida do processo, não
+    # existência de ficheiro montado por volume).
     healthcheck:
-      test: [ "CMD-SHELL", "python -c \"import os; exit(0 if os.path.exists('/app/config.json') else 1)\"" ]
+      test: [ "CMD", "python", "/app/healthcheck.py" ]
       interval: 60s
       timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 120s
 
     # Labels para organização
     labels:
