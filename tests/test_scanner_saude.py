@@ -141,6 +141,119 @@ def test_toda_fonte_do_projeto_tem_nome_confirmado():
     )
 
 
+# =========================================================
+# VOLUME DE PUBLICAÇÃO
+# =========================================================
+
+class _EntradaFalsa:
+    def __init__(self, i):
+        from datetime import datetime, timezone
+        agora = datetime.now(timezone.utc)
+        self.link = f"https://exemplo.test/anime-{i}"
+        self.title = f"Nova temporada de anime anunciada #{i}"
+        self.summary = "Detalhes do anime."
+        self.published_parsed = agora.timetuple()
+
+
+class _FeedFalso:
+    def __init__(self, n):
+        self.entries = [_EntradaFalsa(i) for i in range(n)]
+        self.bozo = False
+
+
+def _prepara_projeto(tmp_path, monkeypatch, fontes, historico):
+    """cwd temporário com config/state/history próprios (utils.storage.p usa abspath)."""
+    (tmp_path / "config.json").write_text(json.dumps({
+        "1": {"filters": ["todos"], "channel_id": 123456789012345678}
+    }), encoding="utf-8")
+    (tmp_path / "history.json").write_text(json.dumps(historico), encoding="utf-8")
+    (tmp_path / "state.json").write_text("{}", encoding="utf-8")
+    (tmp_path / "sources.json").write_text(json.dumps(
+        {"cat": {"sub": [{"url": u, "name": f"Fonte {i}"} for i, u in enumerate(fontes)]}}
+    ), encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    sources._CACHE = None
+
+
+def _roda_varredura(monkeypatch, feeds_por_url, itens_por_fonte):
+    """Executa run_scan_once com o fetch mockado e devolve os títulos publicados."""
+    from unittest.mock import MagicMock
+
+    publicados = []
+
+    class CanalFalso:
+        name = "teste"
+
+        async def send(self, content=None, embed=None, view=None, **kwargs):
+            publicados.append(embed.title if embed is not None else content)
+            return MagicMock()
+
+    bot = MagicMock()
+    bot.get_channel.return_value = CanalFalso()
+    bot.user.display_avatar.url = "https://exemplo.test/a.png"
+
+    async def fetch_falso(session, url, http_state, ssl_ctx):
+        return url, feeds_por_url[url]
+
+    async def sem_traduzir(texto, alvo):
+        return texto
+
+    monkeypatch.setattr(scanner, "_fetch_and_parse", fetch_falso)
+    monkeypatch.setattr(scanner, "translate_to_target", sem_traduzir)
+    monkeypatch.setattr(scanner, "MAX_ITENS_POR_FONTE", itens_por_fonte)
+
+    asyncio.run(scanner.run_scan_once(bot, trigger="teste"))
+    return publicados
+
+
+def test_fonte_nova_e_semeada_sem_publicar(tmp_path, monkeypatch):
+    """
+    Acrescentar fonte ao sources.json não pode despejar o acervo dela no canal.
+    Medido na auditoria: 8 fontes novas rendiam ~70 mensagens de uma vez.
+    """
+    url = "https://exemplo.test/feed-novo"
+    _prepara_projeto(tmp_path, monkeypatch, [url], historico=["https://ja.visto/1"])
+
+    publicados = _roda_varredura(monkeypatch, {url: _FeedFalso(8)}, itens_por_fonte=0)
+    assert publicados == [], "fonte nova publicou em vez de semear"
+
+    with open(tmp_path / "history.json", encoding="utf-8") as f:
+        assert len(json.load(f)) == 9, "o acervo da fonte nova não foi marcado como visto"
+
+    # Segunda varredura: a fonte já é conhecida, item novo publica.
+    feed2 = _FeedFalso(9)
+    publicados2 = _roda_varredura(monkeypatch, {url: feed2}, itens_por_fonte=0)
+    assert len(publicados2) == 1, "fonte já conhecida devia publicar só o item inédito"
+
+
+def test_migracao_assume_cache_http_como_fontes_conhecidas(tmp_path, monkeypatch):
+    """
+    Bot que já rodava numa versão sem `known_sources` não pode, ao atualizar,
+    tratar TODAS as fontes como novas e passar uma varredura inteira em
+    silêncio. As URLs no cache HTTP provam que já foram buscadas antes.
+    """
+    url = "https://exemplo.test/feed-antigo"
+    _prepara_projeto(tmp_path, monkeypatch, [url], historico=["https://ja.visto/1"])
+    # state.json como o de produção antes da atualização: cache HTTP, sem _meta.
+    (tmp_path / "state.json").write_text(
+        json.dumps({url: {"etag": "abc", "last_accessed": "2026-08-01T12:00:00"}}),
+        encoding="utf-8",
+    )
+
+    publicados = _roda_varredura(monkeypatch, {url: _FeedFalso(2)}, itens_por_fonte=0)
+    assert len(publicados) == 2, "fonte antiga foi tratada como nova e engoliu a rodada"
+
+
+def test_teto_por_fonte_segura_o_resto_para_a_proxima(tmp_path, monkeypatch):
+    url = "https://exemplo.test/feed-cheio"
+    _prepara_projeto(tmp_path, monkeypatch, [url], historico=["https://ja.visto/1"])
+    # Primeira varredura semeia; interessa a segunda.
+    _roda_varredura(monkeypatch, {url: _FeedFalso(0)}, itens_por_fonte=3)
+
+    publicados = _roda_varredura(monkeypatch, {url: _FeedFalso(12)}, itens_por_fonte=3)
+    assert len(publicados) == 3, f"teto de 3 não respeitado: saíram {len(publicados)}"
+
+
 def test_fontes_removidas_nao_voltam_por_engano():
     """As fontes retiradas ficam documentadas com o motivo, não apagadas em silêncio."""
     from utils.storage import p as caminho

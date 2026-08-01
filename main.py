@@ -3,6 +3,52 @@
 # main.py (Modularized)
 # =========================================================
 
+# ---------------------------------------------------------
+# PREFLIGHT DE AMBIENTE — antes de qualquer import de terceiros.
+#
+# PROPÓSITO DE NEGÓCIO: dizer em português o que falta instalar, em vez de
+# morrer com um ModuleNotFoundError cru. Nesta máquina o `python` do PATH é o
+# 3.14 e não tem NENHUMA dependência do bot; só a .venv funciona. Quem roda
+# `python main.py` fora da venv leva um traceback que não explica nada.
+#
+# INVARIANTES DO DOMÍNIO: usa só a biblioteca padrão e roda antes de tudo —
+# um import de terceiros acima desta secção anula a verificação.
+#
+# COMPORTAMENTO EM CASO DE FALHA: imprime o interpretador em uso, a lista do
+# que falta e o comando exato de correção, e sai com código 1.
+# ---------------------------------------------------------
+import importlib.util
+import sys
+
+_DEPENDENCIAS = [
+    ("discord", "discord.py"),
+    ("aiohttp", "aiohttp"),
+    ("aiohttp_jinja2", "aiohttp-jinja2"),
+    ("jinja2", "jinja2"),
+    ("feedparser", "feedparser"),
+    ("dotenv", "python-dotenv"),
+    ("certifi", "certifi"),
+    ("colorlog", "colorlog"),
+    ("bs4", "beautifulsoup4"),
+    ("deep_translator", "deep-translator"),
+]
+
+_faltando = [pip for mod, pip in _DEPENDENCIAS if importlib.util.find_spec(mod) is None]
+if _faltando:
+    print("=" * 70)
+    print("AnimeBootNews nao pode iniciar: faltam dependencias.")
+    print(f"Interpretador em uso: {sys.executable}")
+    print(f"Versao: {sys.version.split()[0]}")
+    print(f"Faltando: {', '.join(_faltando)}")
+    print("-" * 70)
+    if sys.platform == "win32":
+        print("Corrija com:   .venv\\Scripts\\python.exe -m pip install -r requirements.txt")
+        print("Ou rode com:   .venv\\Scripts\\python.exe main.py")
+    else:
+        print("Corrija com:   python -m pip install -r requirements.txt")
+    print("=" * 70)
+    sys.exit(1)
+
 import logging
 import asyncio
 import discord

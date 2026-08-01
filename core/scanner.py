@@ -15,7 +15,7 @@ from urllib.parse import urlparse, urljoin
 import discord
 from discord.ext import tasks
 
-from settings import LOOP_MINUTES, FEED_CONCURRENCY
+from settings import LOOP_MINUTES, FEED_CONCURRENCY, MAX_ITENS_POR_FONTE
 from core.sources import load_sources  # noqa: F401 (reexportado: bot.cogs.info importa daqui)
 from utils.storage import p, load_json_safe, save_json_safe
 from utils.html import clean_html
@@ -508,8 +508,30 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
         http_state = load_http_state()
         config = load_json_safe(p("config.json"), {})
         guild_lang_map = {gid: gcfg.get("language") for gid, gcfg in config.items() if "language" in gcfg}
-        
+
+        # Fontes já vistas em varreduras anteriores. Fonte NOVA tem o seu
+        # acervo marcado como visto sem publicar: senão, acrescentar uma fonte
+        # despeja de uma vez tudo o que ela publicou nas últimas 24h no canal.
+        meta = http_state.get("_meta") or {}
+        if "known_sources" in meta:
+            fontes_conhecidas = set(meta.get("known_sources") or [])
+        else:
+            # Migração de uma versão que não gravava known_sources: as URLs que
+            # já estão no cache HTTP são exatamente as que o bot já buscou
+            # alguma vez. Sem isto, o primeiro arranque após a atualização
+            # trataria TODAS as fontes como novas e não publicaria nada.
+            fontes_conhecidas = {u for u in http_state if not u.startswith("_")}
+            if fontes_conhecidas:
+                log.info(
+                    f"🔁 [MIGRAÇÃO] known_sources ausente; {len(fontes_conhecidas)} fontes "
+                    f"do cache HTTP assumidas como já conhecidas."
+                )
+        primeira_execucao = not history_list and not fontes_conhecidas
+        fontes_semeadas: List[str] = []
+
         sent_count = 0
+        semeados = 0
+        limitados = 0
         cache_hits = 0
         # Contadores de saúde da varredura. Sem isto, fonte morta é
         # indistinguível de "não houve notícia": o resumo só dizia quantas
@@ -521,7 +543,17 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
         now_utc = datetime.now(timezone.utc)
         window_start = now_utc - timedelta(days=1)
 
-        log.info("🛡️ [INGEST] Política ativa: feeds estruturados | janela=hoje/ontem | publicações=sem limite por rodada")
+        limite_txt = MAX_ITENS_POR_FONTE if MAX_ITENS_POR_FONTE > 0 else "sem limite"
+        log.info(
+            f"🛡️ [INGEST] Política ativa: feeds estruturados | janela=hoje/ontem | "
+            f"máx por fonte/rodada={limite_txt}"
+        )
+        if primeira_execucao:
+            log.warning(
+                "🌱 [PRIMEIRA EXECUÇÃO] Histórico vazio: esta varredura vai apenas "
+                "marcar o acervo atual como visto, sem publicar. A próxima já publica "
+                "normalmente."
+            )
         
         # SSL context for aiohttp
         ssl_ctx = ssl.create_default_context(cafile=certifi.where())
@@ -548,6 +580,25 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                 if feed is None:
                     feeds_falhos.append(link_url)
                     continue  # erro de fetch/parse ja logado na Fase 1
+
+                # Fonte que o bot nunca varreu antes (recém-adicionada ao
+                # sources.json) entra em modo semeadura: o acervo dela é
+                # marcado como visto, sem publicar. Sem isto, adicionar 8
+                # fontes despeja ~70 mensagens de uma vez no canal.
+                #
+                # A marcação acontece ANTES do teste de feed vazio: uma fonte
+                # que respondeu sem entradas não tem acervo para engolir, e se
+                # continuasse "nova" acabaria por semear — ou seja, engolir — o
+                # primeiro lote no dia em que voltasse a publicar.
+                fonte_nova = link_url not in fontes_conhecidas
+                modo_semeadura = primeira_execucao or (fonte_nova and bool(history_list))
+                if fonte_nova:
+                    fontes_conhecidas.add(link_url)
+                    if modo_semeadura and feed.entries:
+                        fontes_semeadas.append(link_url)
+
+                enviados_desta_fonte = 0
+
                 try:
                     if not feed.entries:
                         feeds_vazios += 1
@@ -555,7 +606,7 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                         continue
 
                     # 3. Process Entries (Newest first usually)
-                    for entry in feed.entries:  # Sem limite de publicações por rodada
+                    for entry in feed.entries:
                         link = getattr(entry, "link", "")
                         title = getattr(entry, "title", "No Title")
                         
@@ -580,7 +631,25 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                         if pub_dt < window_start or pub_dt > now_utc:
                             log.debug(f"⏭️ [DATE] Fora da janela (hoje/ontem): {title[:80]}... | pub={pub_dt.isoformat()}")
                             continue
-                        
+
+                        # Semeadura: marca como visto e segue, sem publicar.
+                        if modo_semeadura:
+                            history_set.add(link)
+                            history_list.append(link)
+                            semeados += 1
+                            continue
+
+                        # Teto por fonte: um canal que sobe 15 vídeos num dia
+                        # não pode ocupar o canal sozinho. Como o feed vem do
+                        # mais recente para o mais antigo, o teto corta a cauda.
+                        if 0 < MAX_ITENS_POR_FONTE <= enviados_desta_fonte:
+                            limitados += 1
+                            log.debug(
+                                f"⏭️ [TETO] {link_url} já rendeu {enviados_desta_fonte} "
+                                f"nesta rodada; resto fica para a próxima."
+                            )
+                            continue
+
                         # Determine media type
                         is_media = "youtube.com" in link or "youtu.be" in link or "twitch.tv" in link
 
@@ -711,6 +780,7 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                         # If sent to at least one guild, verify counting
                         if posted_channels:
                             sent_count += 1
+                            enviados_desta_fonte += 1
                             # Mark as seen GLOBALLY (if logic allows)
                             history_set.add(link)
                             history_list.append(link)
@@ -766,11 +836,19 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
         # Save History & State
         log.info(
             f"✅ [FINISHED] Varredura concluída. "
-            f"(Enviadas: {sent_count} | Cache hits: {cache_hits} | "
+            f"(Enviadas: {sent_count} | Semeadas: {semeados} | "
+            f"Retidas pelo teto: {limitados} | Cache hits: {cache_hits} | "
             f"Fontes: {len(urls)} | Falhas: {len(feeds_falhos)} | "
             f"Vazias: {feeds_vazios} | Itens sem data: {itens_sem_data} | "
             f"Trigger: {trigger})"
         )
+        if fontes_semeadas:
+            log.info(
+                "🌱 [SEMEADURA] %d fonte(s) nova(s) tiveram o acervo marcado como visto "
+                "sem publicar; a partir da próxima varredura publicam normalmente:\n%s",
+                len(fontes_semeadas),
+                "\n".join(f"   - {u}" for u in fontes_semeadas),
+            )
         if feeds_falhos:
             # URL inteira, uma por linha: é isto que permite decidir se a fonte
             # morreu ou se foi bloqueio pontual, sem ter de reproduzir à mão.
@@ -780,10 +858,13 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                 "\n".join(f"   - {u}" for u in feeds_falhos),
             )
         
-        # Persist Last Scan Time in http_state for status command (survives restart)
+        # Persist Last Scan Time in http_state for status command (survives restart).
+        # `known_sources` mora aqui porque cleanup_state preserva chaves com "_";
+        # é o que distingue fonte nova (semeia) de fonte já varrida (publica).
         http_state["_meta"] = {
             "last_scan": datetime.now().isoformat(),
-            "last_run_trigger": trigger
+            "last_run_trigger": trigger,
+            "known_sources": sorted(fontes_conhecidas),
         }
         save_http_state(http_state)
 

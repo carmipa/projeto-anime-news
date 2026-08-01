@@ -565,6 +565,18 @@ Entrada (título + resumo do item)
 Resultado: ✅ Aprovado ou ❌ Bloqueado
 ```
 
+### 🚰 Controle de volume
+
+Duas travas impedem que o canal leve uma enxurrada:
+
+- **Semeadura de fonte nova.** Uma fonte recém-adicionada ao `sources.json` tem
+  o acervo das últimas 24h marcado como visto **sem publicar**; a partir da
+  varredura seguinte publica normalmente. Sem isto, acrescentar 8 fontes
+  despeja ~70 mensagens de uma vez.
+- **Teto por fonte** (`MAX_ITENS_POR_FONTE`, padrão 5, `0` = sem limite). Como
+  o feed vem do mais recente para o mais antigo, o teto corta a cauda; o resto
+  entra na rodada seguinte, dentro da janela de 24h.
+
 As listas vivem em [`core/filters.py`](core/filters.py) e os nomes acima são os
 nomes reais das constantes. Termos em japonês são casados por **substring** —
 `\b` não funciona em japonês, que não separa palavras por espaço.

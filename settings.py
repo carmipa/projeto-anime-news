@@ -23,6 +23,17 @@ except ValueError:
 if FEED_CONCURRENCY < 1:
     FEED_CONCURRENCY = 1
 
+# Teto de publicações por fonte em cada varredura. Um canal que sobe 15 vídeos
+# num dia não pode ocupar o canal sozinho; o resto fica para a rodada seguinte
+# (o feed vem do mais recente para o mais antigo, e a janela é de 24h).
+# 0 = sem limite.
+try:
+    MAX_ITENS_POR_FONTE = int(os.getenv("MAX_ITENS_POR_FONTE", "5"))
+except ValueError:
+    MAX_ITENS_POR_FONTE = 5
+if MAX_ITENS_POR_FONTE < 0:
+    MAX_ITENS_POR_FONTE = 0
+
 # Web dashboard (segurança: por padrão só localhost; em Docker use WEB_HOST=0.0.0.0 com cuidado)
 WEB_ENABLED = os.getenv("WEB_ENABLED", "true").strip().lower() in ("1", "true", "yes", "on")
 WEB_HOST = os.getenv("WEB_HOST", "127.0.0.1")
