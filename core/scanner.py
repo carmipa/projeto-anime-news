@@ -16,6 +16,7 @@ import discord
 from discord.ext import tasks
 
 from settings import LOOP_MINUTES, FEED_CONCURRENCY
+from core.sources import load_sources  # noqa: F401 (reexportado: bot.cogs.info importa daqui)
 from utils.storage import p, load_json_safe, save_json_safe
 from utils.html import clean_html
 from utils.cache import load_http_state, save_http_state, get_cache_headers, update_cache_state, cleanup_state
@@ -359,30 +360,6 @@ def _extract_best_image_url(entry: Any, link: str, summary: str) -> str:
 
     return ""
 
-def load_sources() -> List[str]:
-    """Carrega todas as URLs de sources.json em uma lista plana."""
-    data = load_json_safe(p("sources.json"), {})
-    urls = []
-    
-    # Percorre recursivamente ou por categorias conhecidas
-    # sources.json structure: {"category": {"sub": ["url", ...]}}
-    for category in data.values():
-        if isinstance(category, dict):
-            for subcat in category.values():
-                if isinstance(subcat, list):
-                    urls.extend(subcat)
-        elif isinstance(category, list):
-            urls.extend(category)
-            
-    # Ordered deduplication
-    seen = set()
-    out = []
-    for u in urls:
-        if u and u not in seen:
-            seen.add(u)
-            out.append(u)
-    return out
-
 def _load_history() -> Tuple[List[str], Set[str]]:
     hist_list = load_json_safe(p("history.json"), [])
     # Garante que é lista
@@ -454,17 +431,35 @@ async def _fetch_and_parse(session, link_url, http_state, ssl_ctx):
             return link_url, None
 
         # 2. Parse Feed (em thread separada, com retry)
+        #
+        # `bozo` NÃO é sinónimo de feed inutilizável: o feedparser liga essa
+        # bandeira para qualquer desvio da norma (encoding mal declarado,
+        # namespace não declarado, entidade solta) e mesmo assim devolve as
+        # entradas. Descartar por `bozo` fazia um feed inteiro desaparecer por
+        # um detalhe cosmético — e o único vestígio era uma linha de DEBUG.
+        # Regra: só é falha se não sobrou entrada nenhuma.
         async def parse_feed():
             feed = await asyncio.to_thread(feedparser.parse, content)
-            if feed.bozo:
+            if feed.bozo and not feed.entries:
                 raise FeedParseError(f"Erro parsing {validated_url}: {feed.bozo_exception}")
             return feed
 
         try:
             feed = await retry_async(parse_feed, config=FEED_PARSE_RETRY_CONFIG)
         except FeedParseError as e:
-            log.debug(f"🤡 [PARSER] Erro parsing {validated_url}: {e}")
+            log.warning(f"⚠️ [PARSER] Feed ilegível, 0 entradas: {validated_url} - {e}")
+            audit_logger.log(
+                AuditEventType.SCAN_FAILED,
+                severity=AuditSeverity.WARNING,
+                details={"url": validated_url, "error": str(e), "stage": "parse"}
+            )
             return link_url, None
+
+        if feed.bozo and feed.entries:
+            log.info(
+                f"🩹 [PARSER] {validated_url} veio malformado ({type(feed.bozo_exception).__name__}) "
+                f"mas rendeu {len(feed.entries)} entradas — aproveitado."
+            )
 
         return link_url, feed
 
@@ -516,6 +511,12 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
         
         sent_count = 0
         cache_hits = 0
+        # Contadores de saúde da varredura. Sem isto, fonte morta é
+        # indistinguível de "não houve notícia": o resumo só dizia quantas
+        # foram enviadas, e o WARNING de cada falha perdia-se no meio do log.
+        feeds_falhos: List[str] = []
+        feeds_vazios = 0
+        itens_sem_data = 0
 
         now_utc = datetime.now(timezone.utc)
         window_start = now_utc - timedelta(days=1)
@@ -545,9 +546,12 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                     cache_hits += 1
                     continue
                 if feed is None:
+                    feeds_falhos.append(link_url)
                     continue  # erro de fetch/parse ja logado na Fase 1
                 try:
                     if not feed.entries:
+                        feeds_vazios += 1
+                        log.warning(f"⚠️ [FEED VAZIO] 200 OK mas 0 entradas: {link_url}")
                         continue
 
                     # 3. Process Entries (Newest first usually)
@@ -569,6 +573,7 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
 
                         pub_dt = _extract_entry_datetime(entry)
                         if pub_dt is None:
+                            itens_sem_data += 1
                             log.debug(f"⏭️ [DATE] Item sem data, ignorado: {title[:80]}...")
                             continue
 
@@ -738,6 +743,9 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
         stats.scans_completed += 1
         stats.news_posted += sent_count
         stats.cache_hits_total += cache_hits
+        # errors_count existia e nunca era incrementado: ficava sempre 0,
+        # dando a impressão de que nenhuma fonte tinha falhado.
+        stats.errors_count += len(feeds_falhos)
         stats.last_scan_time = datetime.now()
 
         # Audit log
@@ -748,12 +756,29 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                 "trigger": trigger,
                 "sent_count": sent_count,
                 "cache_hits": cache_hits,
-                "total_feeds": len(urls)
+                "total_feeds": len(urls),
+                "feeds_falhos": len(feeds_falhos),
+                "feeds_vazios": feeds_vazios,
+                "itens_sem_data": itens_sem_data,
             }
         )
 
         # Save History & State
-        log.info(f"✅ [FINISHED] Varredura concluída. (Enviadas: {sent_count} | Cache hits: {cache_hits} | Trigger: {trigger})")
+        log.info(
+            f"✅ [FINISHED] Varredura concluída. "
+            f"(Enviadas: {sent_count} | Cache hits: {cache_hits} | "
+            f"Fontes: {len(urls)} | Falhas: {len(feeds_falhos)} | "
+            f"Vazias: {feeds_vazios} | Itens sem data: {itens_sem_data} | "
+            f"Trigger: {trigger})"
+        )
+        if feeds_falhos:
+            # URL inteira, uma por linha: é isto que permite decidir se a fonte
+            # morreu ou se foi bloqueio pontual, sem ter de reproduzir à mão.
+            log.warning(
+                "⚠️ [FONTES COM FALHA] %d de %d:\n%s",
+                len(feeds_falhos), len(urls),
+                "\n".join(f"   - {u}" for u in feeds_falhos),
+            )
         
         # Persist Last Scan Time in http_state for status command (survives restart)
         http_state["_meta"] = {
@@ -773,19 +798,39 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
 loop_task = None
 
 def start_scheduler(bot: discord.Client):
-    """Inicia o loop agendado."""
+    """
+    PROPÓSITO DE NEGÓCIO: pôr de pé o relógio que dispara a varredura periódica
+    de notícias. É chamado do `on_ready`, que o discord.py reexecuta a cada
+    reconexão do gateway — coisa que acontece sozinha em produção.
+
+    INVARIANTES DO DOMÍNIO:
+    - No máximo UM agendador vivo por processo. O `@tasks.loop` é declarado
+      DENTRO da função, logo cada chamada fabricava um objeto `Loop` novo: não
+      havia o `RuntimeError` de "already launched" que protege um loop de
+      módulo, o loop antigo continuava a correr e só se perdia a referência.
+      Medido: duas chamadas = dois loops ativos, ambos disparando varredura.
+    - Chamada repetida é no-op: mantém o agendador existente e o seu horário.
+
+    COMPORTAMENTO EM CASO DE FALHA: se o loop guardado tiver morrido (cancelado
+    ou terminado com exceção), um novo é criado no lugar; a função nunca levanta.
+    """
     global loop_task
-    
+
+    if loop_task is not None and loop_task.is_running():
+        log.info("🔄 Agendador já ativo — chamada ignorada (reconexão do gateway).")
+        return loop_task
+
     @tasks.loop(minutes=LOOP_MINUTES)
     async def intelligence_gathering():
         await run_scan_once(bot, trigger="loop")
         if intelligence_gathering.next_iteration:
             _log_next_run(intelligence_gathering.next_iteration)
-    
+
     @intelligence_gathering.before_loop
     async def _before_loop():
         await bot.wait_until_ready()
-    
+
     loop_task = intelligence_gathering
     loop_task.start()
     log.info(f"🔄 Agendador de tarefas iniciado ({LOOP_MINUTES} min).")
+    return loop_task

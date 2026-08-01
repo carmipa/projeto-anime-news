@@ -13,22 +13,21 @@ def test_config_files_exist():
     assert os.path.exists("main.py"), "main.py deve existir"
 
 
-def _iter_source_urls(data):
-    """Achata sources.json ({categoria: {subcategoria: [urls]}}) numa lista de URLs.
-    Mesmo formato que core.scanner.load_sources consome."""
-    urls = []
-    for category in data.values():
-        if isinstance(category, dict):
-            for subcat in category.values():
-                if isinstance(subcat, list):
-                    urls.extend(subcat)
-        elif isinstance(category, list):
-            urls.extend(category)
-    return urls
+def _iter_source_urls(data=None):
+    """
+    URLs das fontes, lidas pelo MESMO carregador que a varredura usa.
+
+    Antes esta função reimplementava o achatamento do sources.json. Quando o
+    ficheiro ganhou metadados por fonte, a cópia passou a devolver dicionários
+    em vez de strings e os testes abaixo deixaram de verificar o que diziam
+    verificar — sem falhar. Sonda reimplementada mente; usar o código real.
+    """
+    from core.sources import load_sources
+    return load_sources()
 
 
 def test_sources_json_structure():
-    """Verifica estrutura de sources.json: dict de categorias com listas de URLs."""
+    """Verifica estrutura de sources.json: dict de categorias com listas de fontes."""
     with open("sources.json", "r", encoding="utf-8") as f:
         data = json.load(f)
 
@@ -37,20 +36,21 @@ def test_sources_json_structure():
     # Deve ter pelo menos uma categoria (ex: youtube_feeds, official_sites)
     assert data, "sources.json não pode estar vazio"
 
-    # Cada categoria deve ser dict (subcategorias) ou list (URLs diretas)
+    # Cada categoria deve ser dict (subcategorias) ou list (fontes diretas)
     for name, category in data.items():
         assert isinstance(category, (dict, list)), f"Categoria '{name}' deve ser dict ou list"
 
-    # Deve resultar em pelo menos uma URL utilizável
-    assert _iter_source_urls(data), "sources.json deve conter pelo menos uma URL"
+    # Deve resultar em pelo menos uma URL utilizável PELO CARREGADOR REAL
+    assert _iter_source_urls(), "sources.json deve conter pelo menos uma URL"
 
 
 def test_no_invalid_youtube_urls():
     """Verifica que não há URLs do YouTube com @ (formato inválido: handle, não feed Atom)."""
-    with open("sources.json", "r", encoding="utf-8") as f:
-        data = json.load(f)
+    urls = _iter_source_urls()
+    assert urls, "nenhuma URL carregada — o teste abaixo não provaria nada"
 
-    for url in _iter_source_urls(data):
+    for url in urls:
+        assert isinstance(url, str), f"load_sources devolveu {type(url).__name__}, não URL"
         if "youtube.com" in url or "youtu.be" in url:
             assert "@" not in url, f"YouTube URL inválida (use channel_id): {url}"
 
