@@ -57,22 +57,35 @@ def test_sources_json_valid():
 
 
 def test_sources_urls_are_valid():
-    """Verifica que URLs em sources.json começam com http(s)."""
-    import json
-    with open("sources.json", "r", encoding="utf-8") as f:
-        data = json.load(f)
-    
-    all_urls = []
-    for key in data:
-        if isinstance(data[key], list):
-            all_urls.extend(data[key])
-    
-    for url in all_urls:
+    """
+    Verifica que as URLs carregadas começam com http(s).
+
+    A versão anterior só olhava para `data[key]` quando era lista — e as
+    categorias do sources.json são dicionários, logo `all_urls` ficava VAZIO e
+    o teste não verificava nada. Passar a usar o carregador real resolve as
+    duas coisas: testa o que diz testar e acompanha mudanças de schema.
+    """
+    from core.sources import load_sources
+
+    urls = load_sources()
+    assert urls, "nenhuma URL carregada de sources.json"
+    for url in urls:
         assert url.startswith(("http://", "https://")), f"URL inválida: {url}"
 
 
 def test_readme_exists():
-    """Smoke test: verifica que README existe."""
+    """
+    Verifica que o README existe, sem depender de capitalização nem do cwd.
+
+    O ficheiro é `README.md` no git e `readme.md` no Windows (sistema de
+    ficheiros insensível a maiúsculas). O teste procurava `readme.md` relativo
+    ao cwd: passava no Windows e falhava em Linux — ou seja, só quebrava no
+    ambiente de produção. Foi assim que a suíte passou verde aqui e vermelha
+    no container 3.10.
+    """
     import os
-    assert os.path.exists("readme.md"), "readme.md deve existir"
+
+    raiz = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    encontrados = [n for n in os.listdir(raiz) if n.lower() == "readme.md"]
+    assert encontrados, f"nenhum README.md em {raiz}"
 
