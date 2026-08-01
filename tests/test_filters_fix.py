@@ -1,150 +1,66 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Script de teste rápido para verificar se os filtros estão bloqueando corretamente
-os conteúdos reportados pelo usuário.
+Regressão dos casos que o Paulo reportou tendo visto no canal: conteúdo
+live-action, variedades e beisebol do Netflix Japan a entrar num canal de
+notícias de anime.
+
+Duas coisas mudaram face à versão anterior deste ficheiro:
+
+1. Rodava como script e trocava `sys.stdout` no import, o que corrompia a
+   captura do pytest — por isso estava excluído da coleta e não corria em lado
+   nenhum. Agora é um teste normal.
+2. Todos os casos apontavam para o channel_id `UC14Yc2Qv92DMuyNRlHvpo2Q` a
+   chamar-lhe "Netflix Japan". Esse ID é a **TOHO animation**. O engano não era
+   só do teste: estava também no código, e punha um estúdio de anime a ser
+   tratado como fonte mista. Os casos passaram a usar o canal verdadeiro.
 """
-import sys
-import os
-import io
-
-# Configurar encoding UTF-8 para Windows
-if sys.platform == 'win32':
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
-
-sys.path.append(os.path.dirname(__file__))
+import pytest
 
 from core.filters import match_intel
 
-# Configuração de teste
 CONFIG = {
     "417746665219424277": {
         "filters": ["anime", "news", "games", "filmes"],
         "channel_id": 1426541539978510490,
-        "language": "pt_BR"
+        "language": "pt_BR",
     }
 }
+GUILD = "417746665219424277"
 
-GUILD_ID = "417746665219424277"
+NETFLIX_JP = "https://www.youtube.com/feeds/videos.xml?channel_id=UCv2ejD5B1xOYtGB2cf80B8g"
+TOHO = "https://www.youtube.com/feeds/videos.xml?channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q"
 
-# Casos reportados pelo usuário que DEVEM ser bloqueados
-TEST_CASES = [
-    {
-        "title": "\"Se eu pudesse passar uma coisa\" | Clássico Mundial de Beisebol 2026 | Netflix Japão",
-        "summary": "Netflix Japan",
-        "source": "https://www.youtube.com/feeds/videos.xml?channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q",
-        "expected": False,
-        "reason": "Beisebol + Netflix Japan"
-    },
-    {
-        "title": "#3 Samurai Japan Manager Pressão para se tornar o melhor do mundo: Tatsunori Hara x Kazunari Ninomiya | Clássico Mundial de Beisebol de 2026",
-        "summary": "Netflix Japan",
-        "source": "https://www.youtube.com/feeds/videos.xml?channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q",
-        "expected": False,
-        "reason": "Beisebol + Manager + Netflix Japan"
-    },
-    {
-        "title": "Bem-vindo ao Lanche \"Ai\" | Este sou eu | Netflix Japão",
-        "summary": "Netflix Japan",
-        "source": "https://www.youtube.com/feeds/videos.xml?channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q",
-        "expected": False,
-        "reason": "Netflix Japan + Este sou eu"
-    },
-    {
-        "title": "Caso com as circunstâncias de Takuya e Ai | Este sou eu | Netflix Japão",
-        "summary": "Netflix Japan",
-        "source": "https://www.youtube.com/feeds/videos.xml?channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q",
-        "expected": False,
-        "reason": "Netflix Japan + circunstâncias"
-    },
-    {
-        "title": "\"Clássico Mundial de Beisebol 2026\" | Canção de torcida do torneio Netflix | Koshi Inaba \"Toque\" | Filme Especial",
-        "summary": "Netflix Japan",
-        "source": "https://www.youtube.com/feeds/videos.xml?channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q",
-        "expected": False,
-        "reason": "Beisebol + Canção de torcida + Netflix"
-    },
-    {
-        "title": "Haruki Mochizuki se torna Ai! GRWM & Set Tour｜This is I｜Netflix Japan",
-        "summary": "Netflix Japan",
-        "source": "https://www.youtube.com/feeds/videos.xml?channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q",
-        "expected": False,
-        "reason": "GRWM + Set Tour + Netflix Japan"
-    },
-    {
-        "title": "Kim Seon-ho x Go Yoon-jung - Primeiro beijo em frente a uma cachoeira particular | Você consegue interpretar o amor? | Netflix Japão",
-        "summary": "Netflix Japan",
-        "source": "https://www.youtube.com/feeds/videos.xml?channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q",
-        "expected": False,
-        "reason": "Netflix Japan + série live-action"
-    },
-    {
-        "title": "Tour \"Green Room\" de Boys | O namorado 2 | Netflix Japão",
-        "summary": "Netflix Japan",
-        "source": "https://www.youtube.com/feeds/videos.xml?channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q",
-        "expected": False,
-        "reason": "Green Room + O namorado + Netflix Japan"
-    },
-    # Casos que DEVEM passar (anime relacionado)
-    {
-        "title": "New Anime Trailer Released",
-        "summary": "Sunrise studio announces new series",
-        "source": "https://www.youtube.com/feeds/videos.xml?channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q",
-        "expected": True,
-        "reason": "Anime é conteúdo relacionado"
-    },
-    {
-        "title": "Crunchyroll adds new Manga titles",
-        "summary": "Spring season announcements",
-        "source": "https://rss.feed/test",
-        "expected": True,
-        "reason": "Crunchyroll + Manga são relacionados a anime"
-    },
+BLOQUEAR = [
+    ('"Se eu pudesse passar uma coisa" | Clássico Mundial de Beisebol 2026 | Netflix Japão',
+     "beisebol"),
+    ("#3 Samurai Japan Manager Pressão para se tornar o melhor do mundo: Tatsunori Hara x "
+     "Kazunari Ninomiya | Clássico Mundial de Beisebol de 2026", "beisebol + manager"),
+    ('Bem-vindo ao Lanche "Ai" | Este sou eu | Netflix Japão', "reality 'Este sou eu'"),
+    ("Caso com as circunstâncias de Takuya e Ai | Este sou eu | Netflix Japão", "reality"),
+    ('"Clássico Mundial de Beisebol 2026" | Canção de torcida do torneio Netflix | '
+     'Koshi Inaba "Toque" | Filme Especial', "beisebol + canção de torcida"),
+    ("Haruki Mochizuki se torna Ai! GRWM & Set Tour｜This is I｜Netflix Japan", "GRWM + set tour"),
+    ("Kim Seon-ho x Go Yoon-jung - Primeiro beijo em frente a uma cachoeira particular | "
+     "Você consegue interpretar o amor? | Netflix Japão", "dorama live-action"),
+    ('Tour "Green Room" de Boys | O namorado 2 | Netflix Japão', "green room + o namorado"),
 ]
 
-def main():
-    print("=" * 80)
-    print("TESTE DE FILTROS - Verificação de Correções")
-    print("=" * 80)
-    print()
-    
-    passed = 0
-    failed = 0
-    
-    for i, case in enumerate(TEST_CASES, 1):
-        result = match_intel(
-            GUILD_ID,
-            case["title"],
-            case["summary"],
-            CONFIG,
-            source=case["source"]
-        )
-        
-        status = "[OK] PASSOU" if result == case["expected"] else "[X] FALHOU"
-        if result == case["expected"]:
-            passed += 1
-        else:
-            failed += 1
-        
-        print(f"Teste {i}: {status}")
-        print(f"  Título: {case['title'][:70]}...")
-        print(f"  Fonte: {case['source'][:60]}...")
-        print(f"  Esperado: {'BLOQUEAR' if not case['expected'] else 'PERMITIR'}")
-        print(f"  Resultado: {'BLOQUEADO' if not result else 'PERMITIDO'}")
-        print(f"  Motivo: {case['reason']}")
-        print()
-    
-    print("=" * 80)
-    print(f"RESULTADO FINAL: {passed} passaram, {failed} falharam")
-    print("=" * 80)
-    
-    if failed > 0:
-        print("\n[AVISO] ALGUNS TESTES FALHARAM! Verifique os filtros.")
-        sys.exit(1)
-    else:
-        print("\n[OK] TODOS OS TESTES PASSARAM!")
-        sys.exit(0)
 
-if __name__ == "__main__":
-    main()
+@pytest.mark.parametrize("titulo,motivo", BLOQUEAR)
+def test_conteudo_nao_anime_do_netflix_japan_e_bloqueado(titulo, motivo):
+    assert match_intel(GUILD, titulo, "Netflix Japan", CONFIG, source=NETFLIX_JP) is False, motivo
+
+
+def test_anime_de_estudio_confiavel_passa():
+    assert match_intel(
+        GUILD, "New Anime Trailer Released", "Sunrise studio announces new series",
+        CONFIG, source=TOHO,
+    ) is True
+
+
+def test_anime_de_fonte_rss_desconhecida_passa():
+    assert match_intel(
+        GUILD, "Crunchyroll adds new Manga titles", "Spring season announcements",
+        CONFIG, source="https://rss.feed/test",
+    ) is True

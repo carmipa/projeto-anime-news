@@ -1,15 +1,18 @@
 """
 Configuração do pytest para a pasta tests/.
 
-Alguns arquivos aqui são SCRIPTS manuais (rodam via `python tests/xxx.py`),
-não testes automatizados: não têm funções `test_` e executam código no nível de
-módulo. Em especial, test_filters_fix.py troca sys.stdout no import (Windows),
-o que corrompe a captura do pytest ("I/O operation on closed file"). Excluímos
-esses arquivos da coleta para manter a suíte limpa. Eles seguem executáveis à mão.
+`test_filters_fix.py` e `verify_filters_manual.py` estavam aqui excluídos por
+serem scripts manuais. Consequência: ficaram 7/9 e 10/10 sem ninguém ver, e
+foi um deles que denunciou dois bugs reais de produção (a lista de termos
+estritos não conhecia "Demon Slayer"; a blacklist não tinha nenhum termo de
+merch, apesar do readme prometer). Ambos são agora testes normais —
+`verify_filters_manual.py` virou `test_filtros_spec.py`.
+
+O que continua fora da coleta são só os dois scripts que fazem **rede real**:
+não são testes (não afirmam nada), são ferramentas de diagnóstico manual.
+Rodam com `python tests/<nome>.py` a partir da raiz do projeto.
 """
 collect_ignore = [
-    "test_filters_fix.py",
-    "test_live_scanner.py",
-    "verify_filters_manual.py",
-    "test_discovery.py",  # script de descoberta de feeds (faz requests de rede reais)
+    "test_live_scanner.py",  # varredura real contra sources.json, com envio ao Discord mockado
+    "test_discovery.py",     # descoberta de feeds; faz requests HTTP reais
 ]
