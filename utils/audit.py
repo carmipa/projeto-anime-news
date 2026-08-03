@@ -4,7 +4,7 @@ Structured logging for security events, configuration changes, and compliance tr
 """
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Optional, List
 from enum import Enum
 
@@ -145,7 +145,7 @@ class AuditLogger:
             metadata: Metadados adicionais
         """
         event = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "event_type": event_type.value,
             "severity": severity.value,
             "user_id": user_id,
@@ -224,7 +224,11 @@ class AuditLogger:
             if since:
                 try:
                     event_time = datetime.fromisoformat(event.get("timestamp", ""))
-                    if event_time < since:
+                    # Normaliza para UTC-aware (tolera timestamps legados naive)
+                    if event_time.tzinfo is None:
+                        event_time = event_time.replace(tzinfo=timezone.utc)
+                    since_cmp = since if since.tzinfo else since.replace(tzinfo=timezone.utc)
+                    if event_time < since_cmp:
                         continue
                 except (ValueError, TypeError):
                     continue
@@ -244,7 +248,7 @@ class AuditLogger:
         Returns:
             Estatísticas
         """
-        since = datetime.utcnow() - timedelta(days=days)
+        since = datetime.now(timezone.utc) - timedelta(days=days)
         events = self.query(since=since, limit=10000)
         
         stats = {

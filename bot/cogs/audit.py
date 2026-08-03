@@ -4,7 +4,7 @@ Audit cog - Comandos para visualizar logs de auditoria e estatísticas de segura
 import discord
 from discord.ext import commands
 from discord import app_commands
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 import logging
 
@@ -58,7 +58,7 @@ class AuditCog(commands.Cog):
             days = min(max(days, 1), 30)
             
             # Consulta eventos
-            since = datetime.utcnow() - timedelta(days=days)
+            since = datetime.now(timezone.utc) - timedelta(days=days)
             
             event_type_enum = None
             if event_type:
@@ -102,7 +102,7 @@ class AuditCog(commands.Cog):
                 title="📊 Logs de Auditoria",
                 description=f"Últimos {days} dias | {len(events)} eventos",
                 color=discord.Color.blue(),
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(timezone.utc)
             )
             
             # Agrupa por tipo
@@ -180,7 +180,7 @@ class AuditCog(commands.Cog):
                 title="📈 Estatísticas de Segurança",
                 description=f"Análise dos últimos {days} dias",
                 color=discord.Color.green(),
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(timezone.utc)
             )
             
             embed.add_field(

@@ -8,7 +8,7 @@ from typing import Dict, Optional, Set, Tuple
 from collections import defaultdict
 from urllib.parse import urlparse, urljoin
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from utils.logger import log
 
@@ -333,7 +333,7 @@ def log_security_event(
         severity: Severidade (INFO, WARNING, ERROR, CRITICAL)
     """
     log_data = {
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "event_type": event_type,
         "severity": severity,
         "user_id": user_id,
