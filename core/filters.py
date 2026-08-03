@@ -391,8 +391,6 @@ def match_intel(
     if not filters:
         return False
 
-    content = f"{clean_html(title)} {clean_html(summary)}".lower()
-
     is_untrusted = _is_untrusted_source(source)
     title_clean = clean_html(title).lower()
     summary_clean = clean_html(summary).lower()
