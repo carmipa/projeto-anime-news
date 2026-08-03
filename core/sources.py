@@ -10,7 +10,16 @@ from typing import Any, Dict, List
 from utils.storage import p, load_json_safe
 
 # Chaves aceitas no objeto de uma fonte dentro de sources.json.
-_META_KEYS = ("name", "untrusted", "enabled", "note")
+_META_KEYS = ("name", "untrusted", "enabled", "note", "user_agent")
+
+# User-Agent de navegador, usado só onde a fonte o exige.
+# NÃO é o padrão de propósito: a Comic Natalie responde 405 a UA de navegador e
+# 200 sem nenhum, enquanto a animeanime.jp faz exatamente o contrário. Não
+# existe um UA que sirva as duas — por isso é decisão por fonte.
+BROWSER_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+)
 
 # Cache do cadastro: o filtro consulta os metadados uma vez por item POR GUILD,
 # logo reler o ficheiro a cada chamada faria I/O no caminho quente. Invalida
@@ -56,12 +65,17 @@ def _normalize(entry: Any) -> Dict[str, Any] | None:
         url = str(entry.get("url", "")).strip()
         if not url:
             return None
-        meta = {"url": url, "name": "", "untrusted": False, "enabled": True, "note": ""}
+        meta = {"url": url, "name": "", "untrusted": False, "enabled": True,
+                "note": "", "user_agent": ""}
         for k in _META_KEYS:
             if k in entry:
                 meta[k] = entry[k]
         meta["untrusted"] = bool(meta["untrusted"])
         meta["enabled"] = bool(meta["enabled"])
+        # "browser" é atalho para o UA de navegador; qualquer outro texto é
+        # usado tal e qual, para o caso de uma fonte exigir algo específico.
+        if str(meta["user_agent"]).strip().lower() == "browser":
+            meta["user_agent"] = BROWSER_USER_AGENT
         return meta
 
     return None
@@ -120,3 +134,21 @@ def load_sources() -> List[str]:
 def source_name(url: str) -> str:
     """Nome legível da fonte (vazio se não cadastrado)."""
     return load_source_meta().get(url, {}).get("name", "")
+
+
+def source_headers(url: str) -> Dict[str, str]:
+    """
+    PROPÓSITO DE NEGÓCIO: devolver os cabeçalhos HTTP que ESTA fonte exige.
+    Sem isto, fonte viva fica inacessível por um detalhe de User-Agent.
+
+    INVARIANTES DO DOMÍNIO:
+    - Por omissão não manda User-Agent nenhum (comportamento histórico do bot,
+      e o que faz a Comic Natalie responder 200 em vez de 405).
+    - Só manda UA quando a fonte o pede explicitamente no cadastro — medido
+      caso a caso, nunca por suposição.
+
+    COMPORTAMENTO EM CASO DE FALHA: fonte não cadastrada ou cadastro ilegível
+    devolve dicionário vazio; nunca levanta.
+    """
+    ua = load_source_meta().get(url, {}).get("user_agent", "")
+    return {"User-Agent": ua} if ua else {}
