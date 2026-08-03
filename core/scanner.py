@@ -16,7 +16,7 @@ import discord
 from discord.ext import tasks
 
 from settings import LOOP_MINUTES, FEED_CONCURRENCY, MAX_ITENS_POR_FONTE
-from core.sources import load_sources  # noqa: F401 (reexportado: bot.cogs.info importa daqui)
+from core.sources import load_sources, source_headers  # noqa: F401 (load_sources reexportado: bot.cogs.info importa daqui)
 from utils.storage import p, load_json_safe, save_json_safe
 from utils.html import clean_html
 from utils.cache import load_http_state, save_http_state, get_cache_headers, update_cache_state, cleanup_state
@@ -408,6 +408,7 @@ async def _fetch_and_parse(session, link_url, http_state, ssl_ctx):
         # 1. Fetch com Cache Headers (com retry)
         async def fetch_feed():
             headers = get_cache_headers(validated_url, http_state)
+            headers.update(source_headers(validated_url))  # User-Agent por fonte, se o cadastro exigir
             async with session.get(validated_url, headers=headers, ssl=ssl_ctx, timeout=20) as resp:
                 if resp.status == 304:
                     return None, resp  # Cache hit
