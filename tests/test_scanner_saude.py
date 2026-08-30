@@ -195,11 +195,7 @@ def _roda_varredura(monkeypatch, feeds_por_url, itens_por_fonte):
     async def fetch_falso(session, url, http_state, ssl_ctx):
         return url, feeds_por_url[url]
 
-    async def sem_traduzir(texto, alvo):
-        return texto
-
     monkeypatch.setattr(scanner, "_fetch_and_parse", fetch_falso)
-    monkeypatch.setattr(scanner, "translate_to_target", sem_traduzir)
     monkeypatch.setattr(scanner, "MAX_ITENS_POR_FONTE", itens_por_fonte)
 
     asyncio.run(scanner.run_scan_once(bot, trigger="teste"))

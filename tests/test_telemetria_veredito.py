@@ -21,7 +21,7 @@ def _av(**kw):
     """avaliar_varredura com um cenário saudável por baixo; sobrescreve o que o teste quer."""
     base = dict(
         fontes_totais=50, feeds_falhos=0, feeds_vazios=0, itens_sem_data=0,
-        enviadas=5, semeados=0, cache_hits=3, traducoes_rejeitadas=0,
+        itens_examinados=10, enviadas=5, semeados=0, cache_hits=3,
         ciclos_sem_envio=0,
     )
     base.update(kw)
@@ -36,7 +36,7 @@ def test_todo_veredito_tem_motivo():
         _av(fontes_totais=0),                    # ANOMALIA
         _av(feeds_falhos=30),                    # ANOMALIA por proporção
         _av(feeds_falhos=13),                    # ATENÇÃO por proporção
-        _av(traducoes_rejeitadas=2),             # ATENÇÃO tradução
+        _av(itens_sem_data=8, itens_examinados=10),  # ANOMALIA itens sem data
         _av(enviadas=0, ciclos_sem_envio=30),    # ANOMALIA ciclos
     ]:
         assert cenario["motivos"], f"veredito sem motivo é rótulo, não diagnóstico: {cenario}"
@@ -102,16 +102,31 @@ def test_logo_abaixo_do_limiar_de_atencao_fica_calado():
     assert r["veredito"] == VEREDITO_OK
 
 
-# --- Regra: traduções degradadas (§3.1) ---
+# --- Regra: itens novos descartados por falta de data (proporção calibrada) ---
 
-def test_traducao_degradada_alarma_atencao():
-    r = _av(traducoes_rejeitadas=2)
+def test_maioria_dos_itens_sem_data_alarma_anomalia():
+    # 8 de 10 itens novos sem data → extração de data possivelmente quebrada.
+    r = _av(itens_sem_data=8, itens_examinados=10)
+    assert r["veredito"] == VEREDITO_ANOMALIA
+    assert any("falta de" in m for m in r["motivos"])
+
+
+def test_um_quarto_dos_itens_sem_data_alarma_atencao():
+    r = _av(itens_sem_data=3, itens_examinados=10)  # 0.3
     assert r["veredito"] == VEREDITO_ATENCAO
-    assert any("degradada" in m for m in r["motivos"])
 
 
-def test_zero_traducoes_degradadas_fica_calado():
-    r = _av(traducoes_rejeitadas=0)
+def test_poucos_itens_sem_data_fica_calado():
+    # Gêmeo saudável: 1 em 10 é ruído (0.1, abaixo de 0.25) — não alarma. É a
+    # calibração que evita o alarme falso que fazia isto ser risco residual.
+    r = _av(itens_sem_data=1, itens_examinados=10)
+    assert r["veredito"] == VEREDITO_OK
+
+
+def test_itens_sem_data_sem_denominador_fica_calado():
+    # Sem itens examinados (nenhum item novo), a regra não dispara — não há
+    # proporção a calcular, e um cache-hit total é legítimo.
+    r = _av(itens_sem_data=0, itens_examinados=0)
     assert r["veredito"] == VEREDITO_OK
 
 
@@ -149,8 +164,8 @@ def test_semeadura_com_zero_enviadas_e_ok_mesmo_com_historico_alto():
 # --- Escalada: o pior sinal manda (veredito só sobe, nunca desce) ---
 
 def test_pior_sinal_manda():
-    # ATENÇÃO (tradução) + ANOMALIA (proporção) juntos → ANOMALIA.
-    r = _av(fontes_totais=50, feeds_falhos=30, traducoes_rejeitadas=2)
+    # ATENÇÃO (itens sem data 0.3) + ANOMALIA (fontes mudas 0.6) → ANOMALIA.
+    r = _av(fontes_totais=50, feeds_falhos=30, itens_sem_data=3, itens_examinados=10)
     assert r["veredito"] == VEREDITO_ANOMALIA
 
 

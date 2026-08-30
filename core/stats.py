@@ -5,9 +5,10 @@ PROPÓSITO DE NEGÓCIO:
     Um painel que só mede SUCESSO é indistinguível de um painel que não mede nada:
     `feeds_falhos=0` tanto significa "nenhuma fonte falhou" quanto "o contador nunca
     foi alimentado". Este módulo mede também a AUSÊNCIA — fontes que pararam de
-    entregar, ciclos sem publicar, traduções degradadas — e fecha cada varredura
-    com um veredito explícito e o motivo dele. Sem isto, uma varredura em que metade
-    das fontes morreu tem a mesma aparência de um dia tranquilo sem notícia.
+    entregar, ciclos sem publicar, itens novos descartados por falta de data — e
+    fecha cada varredura com um veredito explícito e o motivo dele. Sem isto, uma
+    varredura em que metade das fontes morreu tem a mesma aparência de um dia
+    tranquilo sem notícia.
 
 INVARIANTES DO DOMÍNIO:
     - Todo veredito diferente de OK vem com pelo menos um MOTIVO textual; veredito
@@ -63,10 +64,10 @@ def avaliar_varredura(
     feeds_falhos: int,
     feeds_vazios: int,
     itens_sem_data: int,
+    itens_examinados: int,
     enviadas: int,
     semeados: int,
     cache_hits: int,
-    traducoes_rejeitadas: int,
     ciclos_sem_envio: int,
 ) -> Dict[str, Any]:
     """
@@ -78,9 +79,9 @@ def avaliar_varredura(
     catálogo vazio é ANOMALIA, semeadura não é ciclo sem envio, zero legítimo é dito.
 
     COMPORTAMENTO EM CASO DE FALHA: não levanta; contador inválido → ANOMALIA
-    "contadores inválidos" (fail-closed). `itens_sem_data` entra nas métricas mas
-    não é gatilho de veredito por si só — muitos itens sem data é sinal fraco e sem
-    calibração contra dado real vira alarme falso (risco residual declarado).
+    "contadores inválidos" (fail-closed). `itens_sem_data` é gatilho por PROPORÇÃO
+    sobre `itens_examinados` (itens novos que chegaram ao check de data), não por
+    limiar cru: só alarma quando a maioria dos itens novos cai sem data.
     """
     def _n(v: Any) -> int:
         try:
@@ -97,7 +98,7 @@ def avaliar_varredura(
         "enviadas": _n(enviadas),
         "semeados": _n(semeados),
         "cache_hits": _n(cache_hits),
-        "traducoes_rejeitadas": _n(traducoes_rejeitadas),
+        "itens_examinados": _n(itens_examinados),
         "ciclos_sem_envio": _n(ciclos_sem_envio),
     }
     if any(v < 0 for v in metricas.values()):
@@ -141,12 +142,24 @@ def avaliar_varredura(
             )
             _sobe(VEREDITO_ATENCAO)
 
-    if metricas["traducoes_rejeitadas"] > 0:
-        motivos.append(
-            f"{metricas['traducoes_rejeitadas']} tradução(ões) degradadas — "
-            "o serviço devolveu página de erro; foi publicado o texto original"
-        )
-        _sobe(VEREDITO_ATENCAO)
+    # Itens novos descartados por falta de data. Proporção sobre os itens novos
+    # examinados (não limiar cru): se a maioria cai sem data, a extração de data
+    # quebrou para aquele lote (a fonte mudou o formato do feed).
+    examinados = metricas["itens_examinados"]
+    sem_data = metricas["itens_sem_data"]
+    if examinados > 0:
+        prop_sem_data = sem_data / examinados
+        if prop_sem_data >= 0.5:
+            motivos.append(
+                f"{sem_data} de {examinados} itens novos descartados por falta de "
+                "data (extração de data possivelmente quebrada)"
+            )
+            _sobe(VEREDITO_ANOMALIA)
+        elif prop_sem_data >= 0.25:
+            motivos.append(
+                f"{sem_data} de {examinados} itens novos descartados por falta de data"
+            )
+            _sobe(VEREDITO_ATENCAO)
 
     if metricas["enviadas"] == 0:
         if metricas["semeados"] > 0:

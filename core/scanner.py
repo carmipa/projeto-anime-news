@@ -20,7 +20,7 @@ from core.sources import load_sources, source_headers  # noqa: F401 (load_source
 from utils.storage import p, load_json_safe, save_json_safe
 from utils.html import clean_html
 from utils.cache import load_http_state, save_http_state, get_cache_headers, update_cache_state, cleanup_state
-from utils.translator import t, translate_to_target, degradacoes_totais
+from utils.translator import t
 from core.stats import stats, avaliar_varredura
 from core.filters import match_intel
 from bot.views.player import WatchView
@@ -507,7 +507,7 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
             # apanhar — não pode sair em silêncio (§3.6). Registra, audita e persiste.
             veredito = avaliar_varredura(
                 fontes_totais=0, feeds_falhos=0, feeds_vazios=0, itens_sem_data=0,
-                enviadas=0, semeados=0, cache_hits=0, traducoes_rejeitadas=0,
+                itens_examinados=0, enviadas=0, semeados=0, cache_hits=0,
                 ciclos_sem_envio=0,
             )
             stats.ultimo_veredito = veredito
@@ -562,11 +562,10 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
         feeds_falhos: List[str] = []
         feeds_vazios = 0
         itens_sem_data = 0
+        itens_examinados = 0  # itens novos que chegaram ao check de data (denominador)
 
-        # Telemetria de ausência (§3.6): snapshot do contador CUMULATIVO de traduções
-        # degradadas, para medir só as DESTA varredura pelo delta; e o histórico de
-        # ciclos seguidos sem publicar, que distingue "dia sem notícia" de "bot mudo".
-        _degradacoes_inicio = degradacoes_totais()
+        # Telemetria de ausência (§3.6): histórico de ciclos seguidos sem publicar,
+        # que distingue "dia sem notícia" de "bot mudo".
         try:
             ciclos_sem_envio_anterior = int(meta.get("ciclos_sem_envio", 0) or 0)
         except (TypeError, ValueError):
@@ -654,6 +653,11 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                             
                         summary = getattr(entry, "summary", "")
 
+                        # Item NOVO (passou o dedup de history) que chega ao check de data.
+                        # É o denominador que torna itens_sem_data um gatilho CALIBRADO:
+                        # a PROPORÇÃO de itens novos descartados por falta de data, não um
+                        # limiar cru — se a maioria cai sem data, a extração de data quebrou.
+                        itens_examinados += 1
                         pub_dt = _extract_entry_datetime(entry)
                         if pub_dt is None:
                             itens_sem_data += 1
@@ -687,8 +691,6 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
 
                         # log 1x por item, não 1x por guild
                         log.debug(f"🧪 [ITEM] src={link_url} | title={title[:80]}...")
-                        
-                        entry_translations = {}
 
                         # 4. Check Filters per Guild
                         # We need to broadcast this news to ALL matching guilds
@@ -708,16 +710,14 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                                 continue
 
 
-                            # Determine Language
+                            # Idioma só para as strings de UI do embed (autor/rodapé).
+                            # O CONTEÚDO da notícia sai no idioma ORIGINAL: a tradução
+                            # automática foi removida em 2026-08-30 — o Google devolvia
+                            # página de erro (500 no IP da VPS) como se fosse tradução,
+                            # degradando publicações em silêncio.
                             target_lang = t.detect_lang(guild_id, guild_lang_map=guild_lang_map)
-                            
-                            # Cache translation per language
-                            if target_lang not in entry_translations:
-                                t_translated = await translate_to_target(clean_html(title), target_lang)
-                                s_translated = await translate_to_target(clean_html(summary), target_lang)
-                                entry_translations[target_lang] = (t_translated, s_translated)
-                            else:
-                                t_translated, s_translated = entry_translations[target_lang]
+                            t_translated = clean_html(title)
+                            s_translated = clean_html(summary)
 
                             # 5. Classifica tipo e envia para o Discord
                             try:
@@ -851,8 +851,6 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
         stats.last_scan_time = datetime.now()
 
         # === Telemetria de ausência: veredito da varredura (§3.6) ===
-        # Traduções degradadas SÓ desta varredura (delta do contador cumulativo).
-        traducoes_rejeitadas = max(0, degradacoes_totais() - _degradacoes_inicio)
         # Semeadura NÃO conta como ciclo sem envio: enviar 0 ao marcar o acervo de
         # uma fonte nova é esperado, e vira publicação no próximo ciclo (lente boa-fé).
         if sent_count == 0 and semeados == 0:
@@ -864,10 +862,10 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
             feeds_falhos=len(feeds_falhos),
             feeds_vazios=feeds_vazios,
             itens_sem_data=itens_sem_data,
+            itens_examinados=itens_examinados,
             enviadas=sent_count,
             semeados=semeados,
             cache_hits=cache_hits,
-            traducoes_rejeitadas=traducoes_rejeitadas,
             ciclos_sem_envio=ciclos_sem_envio,
         )
         stats.ultimo_veredito = veredito

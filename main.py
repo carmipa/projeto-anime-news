@@ -30,7 +30,6 @@ _DEPENDENCIAS = [
     ("certifi", "certifi"),
     ("colorlog", "colorlog"),
     ("bs4", "beautifulsoup4"),
-    ("deep_translator", "deep-translator"),
 ]
 
 _faltando = [pip for mod, pip in _DEPENDENCIAS if importlib.util.find_spec(mod) is None]
