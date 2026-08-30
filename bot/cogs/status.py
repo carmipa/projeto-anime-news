@@ -40,9 +40,24 @@ class StatusCog(commands.Cog):
         else:
             next_scan_str = "⚠️ agendador parado"
 
+        # Veredito de saúde da última varredura (§3.6): em memória, ou o persistido
+        # em state.json (sobrevive a restart, antes da 1ª varredura desta sessão).
+        veredito = stats.ultimo_veredito
+        if not veredito:
+            try:
+                from utils.cache import load_http_state
+                veredito = (load_http_state().get("_meta") or {}).get("ultimo_veredito")
+            except Exception:
+                veredito = None
+        _cor = {
+            "OK": discord.Color.green(),
+            "ATENCAO": discord.Color.gold(),
+            "ANOMALIA": discord.Color.red(),
+        }.get((veredito or {}).get("veredito"), discord.Color.from_rgb(255, 0, 32))
+
         embed = discord.Embed(
             title="🛰️ Status do AnimeBootNews Bot",
-            color=discord.Color.from_rgb(255, 0, 32),
+            color=_cor,
             timestamp=datetime.now()
         )
         
@@ -103,8 +118,21 @@ class StatusCog(commands.Cog):
             inline=True
         )
         
+        if veredito:
+            _emoji = {"OK": "🟢", "ATENCAO": "🟡", "ANOMALIA": "🔴"}.get(
+                veredito.get("veredito"), "⚪")
+            _motivos = veredito.get("motivos") or []
+            _valor = f"{_emoji} **{veredito.get('veredito')}**"
+            if _motivos:
+                _valor += "\n" + "\n".join(f"• {m}" for m in _motivos[:5])
+            embed.add_field(
+                name="🩺 Saúde da última varredura",
+                value=_valor[:1024],
+                inline=False
+            )
+
         embed.set_footer(text=f"Bot v2.1 | Intervalo: {LOOP_MINUTES} min")
-        
+
         await interaction.response.send_message(embed=embed)
 
 
