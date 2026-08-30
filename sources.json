@@ -2,76 +2,267 @@
   "_schema": {
     "versao": 2,
     "formato": "Cada fonte é um objeto: url (obrigatório), name (nome REAL do canal/site, confirmado pelo feed), untrusted (fonte mista: exige termo estrito no título), enabled, note. String solta ainda é aceita e vale como fonte confiável e ativa.",
-    "regra": "O nome nunca é chute: vem do <title> do próprio feed. Foi por confiar em comentário escrito à mão que TOHO animation entrou no código rotulado como Netflix Japan."
+    "regra": "O nome nunca é chute: vem do <title> do próprio feed. Foi por confiar em comentário escrito à mão que TOHO animation entrou no código rotulado como Netflix Japan.",
+    "sondagem_2026_08_30": {
+      "ferramenta": ".venv\\Scripts\\python.exe scripts\\probe_sources.py --catalogo  (sai 0/1/2; 2 = NAO VERIFICOU, que nao e aprovacao)",
+      "caminho": "Sonda pelo _fetch_and_parse DESTE scanner: mesmo validate_url, mesmos source_headers (User-Agent por fonte) e mesmo feedparser. Sonda com cliente proprio mediria outra coisa.",
+      "resultado": "48/51 saudaveis. Criterio: 200 + pelo menos 1 entrada + item mais recente com menos de 180 dias.",
+      "congeladas_nao_removidas": {
+        "https://www.youtube.com/feeds/videos.xml?channel_id=UCDGIcJaK4s-hPTcXy1yZ7qA": "サイエンスSARU — item mais recente ha 236 dias. Estudio ativo entre projetos publica pouco; nao removida, so registada.",
+        "https://www.youtube.com/feeds/videos.xml?channel_id=UCPwWKXD4Em7uJFq9P36Pv5g": "AniSelect — 252 dias.",
+        "https://otakuusamagazine.com/feed/": "Otaku USA Magazine — 361 dias. E a que mais parece morta de facto."
+      },
+      "nota_titulos": "Os 3 avisos de 'titulo diverge' da primeira execucao eram FALSOS POSITIVOS do comparador, todos por pontuacao (espaco duplo, hifen, parentese) — corrigido em _chave_de_comparacao. Nenhum canal esta trocado neste catalogo."
+    }
   },
   "youtube_feeds": {
     "anime_studios": [
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q", "name": "TOHO animation チャンネル" },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCmDLyFjSutfb1MK7F6cMVSA", "name": "サンライズ SUNRISE Official" },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCQ5URCSs1f5Cz9rh-cDGxNQ", "name": "バンダイナムコフィルムワークス チャンネル" },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC7wu64jFsV02bbu6UHUd7JA", "name": "ガンダムチャンネル" },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCY5fcqgSrQItPAX_Z5Frmwg", "name": "KADOKAWAanime" },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC14QT5j2nQI8lKBCGtrrBQA", "name": "アニプレックス チャンネル" },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCb-ekPowbBlQhyt7ZXPiu5Q", "name": "ぽにきゃん Anime PONY CANYON" },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCcjqSFXBg2cGQg5r0YooMiA", "name": "Warner Bros. Japan Anime" },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC6VPE3kztGEtFVcJI0oIiUg", "name": "SHOCHIKU animeチャンネル【公式】" },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCpGY2vcoKXf7K6tFzsbSv7w", "name": "京アニチャンネル" },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCRc3mprfrE8qaugB1VfQXiA", "name": "ufotable" },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC0U2GG9WNndvt1wK41l9iqg", "name": "スタジオぴえろ【公式】" },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCivtAzCENYI1jb6Clxydvdw", "name": "WIT STUDIO" },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC5trivYoInSZBxMBIM0f48w", "name": "TRIGGER CHANNEL" },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCDGIcJaK4s-hPTcXy1yZ7qA", "name": "サイエンスSARU", "note": "publica pouco (última em 2026-01)" },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC43H8s_LItL4ppe6-STQBSA", "name": "GA文庫チャンネル" },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC47AYUs8AVU1QsT5LhpXjaw", "name": "ジャンプチャンネル (集英社)" }
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC14Yc2Qv92DMuyNRlHvpo2Q",
+        "name": "TOHO animation チャンネル"
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCmDLyFjSutfb1MK7F6cMVSA",
+        "name": "サンライズ SUNRISE Official"
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCQ5URCSs1f5Cz9rh-cDGxNQ",
+        "name": "バンダイナムコフィルムワークス チャンネル"
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC7wu64jFsV02bbu6UHUd7JA",
+        "name": "ガンダムチャンネル"
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCY5fcqgSrQItPAX_Z5Frmwg",
+        "name": "KADOKAWAanime"
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC14QT5j2nQI8lKBCGtrrBQA",
+        "name": "アニプレックス チャンネル"
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCb-ekPowbBlQhyt7ZXPiu5Q",
+        "name": "ぽにきゃん Anime PONY CANYON"
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCcjqSFXBg2cGQg5r0YooMiA",
+        "name": "Warner Bros. Japan Anime"
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC6VPE3kztGEtFVcJI0oIiUg",
+        "name": "SHOCHIKU animeチャンネル【公式】"
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCpGY2vcoKXf7K6tFzsbSv7w",
+        "name": "京アニチャンネル"
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCRc3mprfrE8qaugB1VfQXiA",
+        "name": "ufotable"
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC0U2GG9WNndvt1wK41l9iqg",
+        "name": "スタジオぴえろ【公式】"
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCivtAzCENYI1jb6Clxydvdw",
+        "name": "WIT STUDIO"
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC5trivYoInSZBxMBIM0f48w",
+        "name": "TRIGGER CHANNEL"
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCDGIcJaK4s-hPTcXy1yZ7qA",
+        "name": "サイエンスSARU",
+        "note": "publica pouco (última em 2026-01)"
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC43H8s_LItL4ppe6-STQBSA",
+        "name": "GA文庫チャンネル"
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC47AYUs8AVU1QsT5LhpXjaw",
+        "name": "ジャンプチャンネル (集英社)"
+      }
     ],
     "anime_distributors": [
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC6pGDc4bFGD1_36IKv3FnYg", "name": "Crunchyroll" },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCVc-JLY3Db6-O48y7TS4N7Q", "name": "Crunchyroll Brasil" },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCDb0peSmF5rLX7BvuTcJfCw", "name": "Aniplex USA" },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC0wNSTMWIL3qaorLx0jie6A", "name": "Ani-One Asia" },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCGbshtvS9t-8CW11W7TooQg", "name": "Muse Asia" },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCBSs9x2KzSLhyyA9IKyt4YA", "name": "Netflix Anime" },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCPZkYpT5XIUou8sV8zk-3jQ", "name": "RetroCrush" },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCgettoG9GHSS8oOT1tXVEEw", "name": "Anime Overview" },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCPwWKXD4Em7uJFq9P36Pv5g", "name": "AniSelect", "note": "publica pouco (última em 2025-12)" }
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC6pGDc4bFGD1_36IKv3FnYg",
+        "name": "Crunchyroll"
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCVc-JLY3Db6-O48y7TS4N7Q",
+        "name": "Crunchyroll Brasil"
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCDb0peSmF5rLX7BvuTcJfCw",
+        "name": "Aniplex USA"
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC0wNSTMWIL3qaorLx0jie6A",
+        "name": "Ani-One Asia"
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCGbshtvS9t-8CW11W7TooQg",
+        "name": "Muse Asia"
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCBSs9x2KzSLhyyA9IKyt4YA",
+        "name": "Netflix Anime"
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCPZkYpT5XIUou8sV8zk-3jQ",
+        "name": "RetroCrush"
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCgettoG9GHSS8oOT1tXVEEw",
+        "name": "Anime Overview"
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCPwWKXD4Em7uJFq9P36Pv5g",
+        "name": "AniSelect",
+        "note": "publica pouco (última em 2025-12)"
+      }
     ],
     "streaming_e_fontes_mistas": [
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCWOA1ZGywLbqmigxE4Qlvuw", "name": "Netflix", "untrusted": true },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCv2ejD5B1xOYtGB2cf80B8g", "name": "Netflix Japan", "untrusted": true },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCc1l5mTmAv2GC_PXrBpqyKQ", "name": "Netflix Brasil", "untrusted": true },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCGie8GMlUo3kBKIopdvumVQ", "name": "Still Watching Netflix", "untrusted": true },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCy8ozxCSVaZJTagk3zSPNZA", "name": "Prime Video AU & NZ", "untrusted": true },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCTOaq4HfNMstuJfZxHszxgw", "name": "Sato Company", "untrusted": true },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCzLtKasUj5agj2Gjvw83ZoQ", "name": "TokuSato", "untrusted": true, "note": "tokusatsu e live-action" }
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCWOA1ZGywLbqmigxE4Qlvuw",
+        "name": "Netflix",
+        "untrusted": true
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCv2ejD5B1xOYtGB2cf80B8g",
+        "name": "Netflix Japan",
+        "untrusted": true
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCc1l5mTmAv2GC_PXrBpqyKQ",
+        "name": "Netflix Brasil",
+        "untrusted": true
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCGie8GMlUo3kBKIopdvumVQ",
+        "name": "Still Watching Netflix",
+        "untrusted": true
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCy8ozxCSVaZJTagk3zSPNZA",
+        "name": "Prime Video AU & NZ",
+        "untrusted": true
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCTOaq4HfNMstuJfZxHszxgw",
+        "name": "Sato Company",
+        "untrusted": true
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCzLtKasUj5agj2Gjvw83ZoQ",
+        "name": "TokuSato",
+        "untrusted": true,
+        "note": "tokusatsu e live-action"
+      }
     ],
     "games_e_musica": [
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCqly9F4Fr_jf2Y1Cy5hacRg", "name": "Bandai Namco Entertainment", "untrusted": true },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC_ntXHv-XdKCD7CPynVvnQw", "name": "Bandai Namco Entertainment America", "untrusted": true },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCETrNUjuH4EoRdZNFx9EI-A", "name": "BANDAI NAMCO Europe", "untrusted": true },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC3pTpoDKt17IrCDH60kSNPA", "name": "반다이남코 엔터테인먼트 코리아 공식 채널", "untrusted": true },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCB_BuOpGioQ7EVKm2F21dnw", "name": "西川貴教 (T.M.Revolution)", "untrusted": true }
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCqly9F4Fr_jf2Y1Cy5hacRg",
+        "name": "Bandai Namco Entertainment",
+        "untrusted": true
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC_ntXHv-XdKCD7CPynVvnQw",
+        "name": "Bandai Namco Entertainment America",
+        "untrusted": true
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCETrNUjuH4EoRdZNFx9EI-A",
+        "name": "BANDAI NAMCO Europe",
+        "untrusted": true
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC3pTpoDKt17IrCDH60kSNPA",
+        "name": "반다이남코 엔터테인먼트 코리아 공식 채널",
+        "untrusted": true
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCB_BuOpGioQ7EVKm2F21dnw",
+        "name": "西川貴教 (T.M.Revolution)",
+        "untrusted": true
+      }
     ],
     "imprensa_e_agregadores": [
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCZYShIzcvrEBXqqjqYfMAsA", "name": "Anime News Network - Official" },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCKy1dAqELo0zrOtPkf0eTMw", "name": "IGN", "untrusted": true },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCWJ5MfdQZ6jXbF5gYuSAf5Q", "name": "IGN Movie Trailers", "untrusted": true },
-      { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCJx5KP-pCUmL9eZUv-mIcNw", "name": "GameTrailers", "untrusted": true }
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCZYShIzcvrEBXqqjqYfMAsA",
+        "name": "Anime News Network - Official"
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCKy1dAqELo0zrOtPkf0eTMw",
+        "name": "IGN",
+        "untrusted": true
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCWJ5MfdQZ6jXbF5gYuSAf5Q",
+        "name": "IGN Movie Trailers",
+        "untrusted": true
+      },
+      {
+        "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCJx5KP-pCUmL9eZUv-mIcNw",
+        "name": "GameTrailers",
+        "untrusted": true
+      }
     ]
   },
   "official_sites": {
     "anime_news": [
-      { "url": "https://www.animenewsnetwork.com/news/rss.xml", "name": "Anime News Network - News" },
-      { "url": "https://myanimelist.net/rss/news.xml", "name": "News - MyAnimeList" },
-      { "url": "https://natalie.mu/comic/feed/news", "name": "コミックナタリー - 最新ニュース", "note": "só responde 200 sem User-Agent de navegador; o bot não manda UA, por isso funciona" },
-      { "url": "https://animeanime.jp/rss/index.rdf", "name": "アニメ！アニメ！ (animeanime.jp)", "user_agent": "browser", "note": "exige User-Agent de navegador: 403 sem UA, 200 com (50 itens). Oposto da Comic Natalie. Validado ao vivo 2026-08-03." },
-      { "url": "https://animecorner.me/feed/", "name": "Anime Corner" },
-      { "url": "https://www.siliconera.com/feed/", "name": "Siliconera", "enabled": false, "note": "VIVA, mas bloqueada para o IP da VPS: 403 com E sem User-Agent de navegador, enquanto responde 200 de IP residencial. Ausente do cache HTTP de produção, que poda em 7 dias — ou seja, falha há mais de uma semana em silêncio. Não é fonte morta: reativar se o bot ganhar proxy de saída." },
-      { "url": "https://otakuusamagazine.com/feed/", "name": "Otaku USA Magazine", "note": "feed congelado desde 2025-09; mantido à espera de retoma" }
+      {
+        "url": "https://www.animenewsnetwork.com/news/rss.xml",
+        "name": "Anime News Network - News"
+      },
+      {
+        "url": "https://myanimelist.net/rss/news.xml",
+        "name": "News - MyAnimeList"
+      },
+      {
+        "url": "https://natalie.mu/comic/feed/news",
+        "name": "コミックナタリー - 最新ニュース",
+        "note": "só responde 200 sem User-Agent de navegador; o bot não manda UA, por isso funciona"
+      },
+      {
+        "url": "https://animeanime.jp/rss/index.rdf",
+        "name": "アニメ！アニメ！ (animeanime.jp)",
+        "user_agent": "browser",
+        "note": "exige User-Agent de navegador: 403 sem UA, 200 com (50 itens). Oposto da Comic Natalie. Validado ao vivo 2026-08-03."
+      },
+      {
+        "url": "https://animecorner.me/feed/",
+        "name": "Anime Corner"
+      },
+      {
+        "url": "https://www.siliconera.com/feed/",
+        "name": "Siliconera",
+        "enabled": false,
+        "note": "VIVA, mas bloqueada para o IP da VPS: 403 com E sem User-Agent de navegador, enquanto responde 200 de IP residencial. Ausente do cache HTTP de produção, que poda em 7 dias — ou seja, falha há mais de uma semana em silêncio. Não é fonte morta: reativar se o bot ganhar proxy de saída."
+      },
+      {
+        "url": "https://otakuusamagazine.com/feed/",
+        "name": "Otaku USA Magazine",
+        "note": "feed congelado desde 2025-09; mantido à espera de retoma"
+      }
     ],
     "estudios": [
-      { "url": "https://www.mappa.co.jp/en/news/feed", "name": "NEWS (英語版) – 株式会社MAPPA" },
-      { "url": "https://a1p.jp/news/feed", "name": "NEWS – A-1 Pictures" },
-      { "url": "https://www.toei-animation.com/news/feed", "name": "News - Toei Animation" }
+      {
+        "url": "https://www.mappa.co.jp/en/news/feed",
+        "name": "NEWS (英語版) – 株式会社MAPPA"
+      },
+      {
+        "url": "https://a1p.jp/news/feed",
+        "name": "NEWS – A-1 Pictures"
+      },
+      {
+        "url": "https://www.toei-animation.com/news/feed",
+        "name": "News - Toei Animation"
+      }
     ],
     "streaming_platforms": []
   },
