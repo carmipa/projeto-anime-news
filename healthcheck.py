@@ -57,7 +57,10 @@ def verifica_web() -> tuple[bool, str]:
 
 
 def verifica_ultima_varredura() -> tuple[bool, str]:
-    caminho = "/app/state.json"
+    # Mesmo DATA_DIR do bot (utils.storage): o state.json vive no volume de
+    # diretório em Docker. Sem DATA_DIR, cai no /app de sempre.
+    base = os.getenv("DATA_DIR", "").strip() or "/app"
+    caminho = os.path.join(base, "state.json")
     if not os.path.exists(caminho):
         return True, "sem state.json ainda (arranque a frio)"
     try:

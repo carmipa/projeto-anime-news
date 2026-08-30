@@ -8,17 +8,35 @@ from typing import Any
 
 log = logging.getLogger("AnimeBotIntel")
 
+# Diretório dos arquivos de ESTADO de runtime. Vazio = diretório atual (comportamento
+# local). Em Docker deve apontar para um volume de DIRETÓRIO (DATA_DIR=/app/data): é o
+# que permite a escrita atômica (os.replace), IMPOSSÍVEL sobre bind mount de arquivo
+# único — onde o rename sobre o mount point dá EBUSY e cai no fallback não-atômico.
+DATA_DIR = os.getenv("DATA_DIR", "").strip()
+
+# Só estes arquivos (estado de runtime, escritos pelo bot) vão para DATA_DIR. Os
+# estáticos vindos da imagem — sources.json (catálogo), translations/, templates —
+# continuam relativos ao diretório do app.
+_ARQUIVOS_DE_ESTADO = {"config.json", "history.json", "state.json", "audit.json", "audit.jsonl"}
+
 
 def p(filename: str) -> str:
     """
-    Retorna o caminho absoluto para um arquivo no diretório raiz do bot.
-    
-    Args:
-        filename: Nome do arquivo (ex: 'config.json')
-    
-    Returns:
-        Caminho absoluto do arquivo
+    PROPÓSITO DE NEGÓCIO: resolver o caminho absoluto de um arquivo do bot,
+    roteando os arquivos de ESTADO de runtime para DATA_DIR quando definido.
+
+    INVARIANTES DO DOMÍNIO:
+    - Só um nome NU (sem separador) que esteja na lista de estado é roteado para
+      DATA_DIR; qualquer coisa com caminho ('translations/x.json') ou fora da lista
+      ('sources.json') resolve relativo ao app, como sempre.
+    - DATA_DIR vazio ⇒ comportamento idêntico ao anterior (cwd), para não mexer no
+      uso local nem nos testes.
+
+    COMPORTAMENTO EM CASO DE FALHA: nunca levanta; devolve sempre um caminho absoluto.
     """
+    base = os.path.basename(filename)
+    if DATA_DIR and filename == base and base in _ARQUIVOS_DE_ESTADO:
+        return os.path.abspath(os.path.join(DATA_DIR, base))
     return os.path.abspath(filename)
 
 

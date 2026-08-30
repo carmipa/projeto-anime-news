@@ -9,25 +9,22 @@ services:
       - .env
     environment:
       - TZ=America/Sao_Paulo
+      # Estado de runtime num volume de DIRETÓRIO (./data): é o que permite a
+      # escrita atômica (os.replace). Bind mount de arquivo único dá EBUSY.
+      - DATA_DIR=/app/data
 
     # Volumes para persistir dados
-    # ATENÇÃO ao subir: bind mount de ARQUIVO que não existe no host faz o
-    # Docker criar um DIRETÓRIO com aquele nome, e aí o bot não consegue mais
-    # ler nem escrever. Antes do primeiro `up`, garanta que existem:
-    #   for f in config.json history.json state.json audit.jsonl; do
-    #     [ -f "$f" ] || echo '{}' > "$f"
-    #   done
-    #   [ -s audit.jsonl ] && : || : > audit.jsonl
     volumes:
-      # Arquivos de configuração e histórico
-      - ./config.json:/app/config.json
-      - ./history.json:/app/history.json
-      - ./state.json:/app/state.json
-      - ./sources.json:/app/sources.json
+      # Estado de runtime (config.json, history.json, state.json, audit.jsonl) num
+      # único DIRETÓRIO. Antes eram bind mounts de ARQUIVO único, onde o rename
+      # atômico (os.replace) é impossível — dava EBUSY e caía no fallback não-atômico,
+      # deixando history.json exposto a corromper num kill no meio da escrita.
+      # A app resolve estes caminhos via DATA_DIR=/app/data (ver utils/storage.p).
+      - ./data:/app/data
 
-      # Trilha de auditoria: sem este volume, todo o histórico de eventos de
-      # segurança e configuração morre a cada `up --build`.
-      - ./audit.jsonl:/app/audit.jsonl
+      # Catálogo de fontes: versionado, atualizado por git pull; o bot só o LÊ,
+      # então bind mount de arquivo único aqui não tem problema de escrita.
+      - ./sources.json:/app/sources.json
 
       # Timezone do host
       - /etc/localtime:/etc/localtime:ro
