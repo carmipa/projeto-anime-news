@@ -10,7 +10,11 @@ from typing import Any, Dict, List
 from utils.storage import p, load_json_safe
 
 # Chaves aceitas no objeto de uma fonte dentro de sources.json.
-_META_KEYS = ("name", "untrusted", "enabled", "note", "user_agent")
+_META_KEYS = ("name", "untrusted", "enabled", "note", "user_agent", "use_proxy")
+
+# Domínios que costumam bloquear o IP de datacenter da VPS — roteados via proxy de
+# saída mesmo sem "use_proxy" explícito no cadastro.
+_PROXY_CANDIDATE_DOMAINS = ("siliconera.com",)
 
 # User-Agent de navegador, usado só onde a fonte o exige.
 # NÃO é o padrão de propósito: a Comic Natalie responde 405 a UA de navegador e
@@ -66,12 +70,13 @@ def _normalize(entry: Any) -> Dict[str, Any] | None:
         if not url:
             return None
         meta = {"url": url, "name": "", "untrusted": False, "enabled": True,
-                "note": "", "user_agent": ""}
+                "note": "", "user_agent": "", "use_proxy": False}
         for k in _META_KEYS:
             if k in entry:
                 meta[k] = entry[k]
         meta["untrusted"] = bool(meta["untrusted"])
         meta["enabled"] = bool(meta["enabled"])
+        meta["use_proxy"] = bool(meta["use_proxy"])
         # "browser" é atalho para o UA de navegador; qualquer outro texto é
         # usado tal e qual, para o caso de uma fonte exigir algo específico.
         if str(meta["user_agent"]).strip().lower() == "browser":
@@ -152,3 +157,23 @@ def source_headers(url: str) -> Dict[str, str]:
     """
     ua = load_source_meta().get(url, {}).get("user_agent", "")
     return {"User-Agent": ua} if ua else {}
+
+
+def source_wants_proxy(url: str) -> bool:
+    """
+    PROPÓSITO DE NEGÓCIO: dizer se ESTA fonte deve ser buscada via proxy de saída
+    (Cloudflare), para não tomar bloqueio do IP de datacenter da VPS.
+
+    INVARIANTES DO DOMÍNIO:
+    - Opt-in por fonte ("use_proxy": true no cadastro) ou por domínio candidato
+      conhecido. Só isto — rotear TODAS as fontes sobrecarregaria o worker.
+    - Que ela seja de fato roteada ainda depende de CLOUDFLARE_PROXY_URL estar
+      definido; esta função diz só a INTENÇÃO da fonte.
+
+    COMPORTAMENTO EM CASO DE FALHA: fonte não cadastrada ou cadastro ilegível
+    devolve False (busca direta); nunca levanta.
+    """
+    if load_source_meta().get(url, {}).get("use_proxy"):
+        return True
+    u = (url or "").lower()
+    return any(d in u for d in _PROXY_CANDIDATE_DOMAINS)

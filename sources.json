@@ -242,7 +242,8 @@
         "url": "https://www.siliconera.com/feed/",
         "name": "Siliconera",
         "enabled": false,
-        "note": "VIVA, mas bloqueada para o IP da VPS: 403 com E sem User-Agent de navegador, enquanto responde 200 de IP residencial. Ausente do cache HTTP de produção, que poda em 7 dias — ou seja, falha há mais de uma semana em silêncio. Não é fonte morta: reativar se o bot ganhar proxy de saída."
+        "use_proxy": true,
+        "note": "VIVA, mas bloqueada para o IP de datacenter da VPS (403 com e sem UA de navegador; 200 de IP residencial). O suporte a proxy de saída já existe (use_proxy + CLOUDFLARE_PROXY_URL). Para REATIVAR: defina CLOUDFLARE_PROXY_URL/CLOUDFLARE_PROXY_SECRET no .env da VPS e mude enabled para true. Sem o proxy definido, continua 403."
       },
       {
         "url": "https://otakuusamagazine.com/feed/",

@@ -3,6 +3,7 @@ Scanner module - Feed fetching and processing logic.
 """
 import ssl
 import asyncio
+import random
 import logging
 import re
 import feedparser
@@ -15,8 +16,12 @@ from urllib.parse import urlparse, urljoin
 import discord
 from discord.ext import tasks
 
-from settings import LOOP_MINUTES, FEED_CONCURRENCY, MAX_ITENS_POR_FONTE
-from core.sources import load_sources, source_headers  # noqa: F401 (load_sources reexportado: bot.cogs.info importa daqui)
+from settings import (
+    LOOP_MINUTES, FEED_CONCURRENCY, MAX_ITENS_POR_FONTE,
+    FEED_JITTER_MIN, FEED_JITTER_MAX,
+    CLOUDFLARE_PROXY_URL, CLOUDFLARE_PROXY_SECRET,
+)
+from core.sources import load_sources, source_headers, source_wants_proxy  # noqa: F401 (load_sources reexportado: bot.cogs.info importa daqui)
 from utils.storage import p, load_json_safe, save_json_safe
 from utils.html import clean_html
 from utils.cache import load_http_state, save_http_state, get_cache_headers, update_cache_state, cleanup_state
@@ -409,7 +414,15 @@ async def _fetch_and_parse(session, link_url, http_state, ssl_ctx):
         async def fetch_feed():
             headers = get_cache_headers(validated_url, http_state)
             headers.update(source_headers(validated_url))  # User-Agent por fonte, se o cadastro exigir
-            async with session.get(validated_url, headers=headers, ssl=ssl_ctx, timeout=20) as resp:
+            # Proxy de saída (Cloudflare): rota para fora do IP de datacenter que
+            # fontes bloqueiam. via_proxy = a fonte PEDE e o worker está configurado
+            # (honesto sobre o que acontece, não sobre a intenção). O segredo só
+            # viaja quando de fato roteando — não vaza para a origem.
+            via_proxy = bool(source_wants_proxy(validated_url) and CLOUDFLARE_PROXY_URL)
+            if via_proxy and CLOUDFLARE_PROXY_SECRET:
+                headers["X-Proxy-Secret"] = CLOUDFLARE_PROXY_SECRET
+            request_url = f"{CLOUDFLARE_PROXY_URL}{validated_url}" if via_proxy else validated_url
+            async with session.get(request_url, headers=headers, ssl=ssl_ctx, timeout=20) as resp:
                 if resp.status == 304:
                     return None, resp  # Cache hit
                 if resp.status != 200:
@@ -597,6 +610,10 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
 
             async def _bounded_fetch(url):
                 async with sem:
+                    # Jitter dentro do semáforo: espalha as requisições no tempo em
+                    # vez de dispará-las em rajada (evasão de rate-limit por IP).
+                    if FEED_JITTER_MAX > 0:
+                        await asyncio.sleep(random.uniform(FEED_JITTER_MIN, FEED_JITTER_MAX))
                     return await _fetch_and_parse(session, url, http_state, ssl_ctx)
 
             fetched = await asyncio.gather(*[_bounded_fetch(u) for u in urls])
