@@ -8,6 +8,7 @@ from collections import OrderedDict
 from typing import Dict, Any, Optional
 from deep_translator import GoogleTranslator
 
+from utils.exceptions import TranslationError
 from utils.storage import p, load_json_safe
 
 log = logging.getLogger("AnimeBotIntel")
@@ -16,6 +17,53 @@ log = logging.getLogger("AnimeBotIntel")
 # textos repetidos (boilerplates de feed, mesmo item em varreduras distintas).
 _TRANSLATION_CACHE: "OrderedDict[tuple, str]" = OrderedDict()
 _TRANSLATION_CACHE_MAX = 2000
+
+# Quantas vezes se publicou sem traduzir desde o arranque. Sem contador, esta degradação
+# só apareceria no canal — que foi exatamente como o incidente do bot irmão foi descoberto.
+_degradacoes_totais = 0
+
+# Assinaturas do texto padrão das páginas de erro do Google. `!!1` é o marcador que todas
+# carregam. Falso positivo aqui é barato — publica-se o texto original, sempre aceitável;
+# falso negativo é que custa caro, e custou: notícia substituída por página de erro.
+_ASSINATURAS_DE_PAGINA_DE_ERRO = (
+    "!!1",
+    "that's an error",
+    "that’s an error",
+    "that's all we know",
+    "that’s all we know",
+)
+
+
+def _traducao_utilizavel(trad) -> bool:
+    """
+    PROPÓSITO DE NEGÓCIO: decidir se o que voltou do tradutor é mesmo uma tradução, e não
+    uma página de erro travestida de sucesso.
+
+    INVARIANTES DO DOMÍNIO: só devolve True para string não vazia sem assinatura de página
+    de erro do Google. A busca é no texto inteiro e em minúsculas — a assinatura aparece no
+    meio da página, não no começo.
+
+    COMPORTAMENTO EM CASO DE FALHA: o que não for `str` (None, bytes, objeto do tradutor)
+    devolve False, sem levantar. Recusar de mais é seguro: quem chama publica o original.
+    """
+    if not isinstance(trad, str):
+        return False
+    if not trad.strip():
+        return False
+    baixo = trad.lower()
+    return not any(a in baixo for a in _ASSINATURAS_DE_PAGINA_DE_ERRO)
+
+
+def degradacoes_totais() -> int:
+    """Quantas publicações saíram sem tradução desde o arranque."""
+    return _degradacoes_totais
+
+
+def _reset_degradacoes() -> None:
+    """Zera o contador e o cache. Existe para os testes não herdarem estado."""
+    global _degradacoes_totais
+    _degradacoes_totais = 0
+    _TRANSLATION_CACHE.clear()
 
 
 class Translator:
@@ -132,18 +180,52 @@ async def translate_to_target(text: str, target_lang: str) -> str:
         _TRANSLATION_CACHE.move_to_end(cache_key)
         return cached
 
+    # O CONTRATO NÃO MUDA: esta função devolve a tradução OU o texto original, e nunca
+    # levanta. Os chamadores em core/scanner.py usam o retorno direto para montar o embed;
+    # propagar exceção daqui partiria a varredura. A `TranslationError` é levantada e
+    # absorvida DENTRO desta fronteira — serve para nomear e registar a causa, não para a
+    # empurrar para cima.
+    global _degradacoes_totais
     try:
-        loop = asyncio.get_running_loop()
-        trad = await loop.run_in_executor(
-            None,
-            lambda: GoogleTranslator(source="auto", target=target).translate(text)
+        try:
+            loop = asyncio.get_running_loop()
+            trad = await loop.run_in_executor(
+                None,
+                lambda: GoogleTranslator(source="auto", target=target).translate(text)
+            )
+        except Exception as e:
+            raise TranslationError(
+                "falha ao contactar o serviço de tradução",
+                details={"erro": f"{type(e).__name__}: {e}", "idioma": target},
+            ) from e
+
+        if not _traducao_utilizavel(trad):
+            # O DEFEITO PRINCIPAL, medido no bot irmão (projeto-bot-games) em 2026-08-30:
+            # o `deep_translator` NÃO levanta quando o Google responde com página de erro —
+            # devolve o TEXTO da página como se fosse a tradução. Este bloco tinha apenas
+            # `if trad:`, que uma string de erro satisfaz. No bot irmão o resultado foi
+            # notícias publicadas com título e resumo `Error 500 (Server Error)!!1...`, a
+            # página de erro GRAVADA no cache, e o link marcado como enviado — a notícia
+            # verdadeira nunca mais sairia.
+            raise TranslationError(
+                "resposta bem-sucedida com conteúdo de página de erro",
+                details={"amostra": str(trad or "")[:120], "idioma": target},
+            )
+    except TranslationError as falha:
+        # O motivo deixou de ser descartado. Antes era `except Exception as e: return text`
+        # com o `e` capturado e NUNCA usado — a regra "nunca descartar o motivo de uma
+        # rejeição" violada à letra, e a razão de a falha ser invisível.
+        _degradacoes_totais += 1
+        log.warning(
+            "🌐 %s (%s). Publicando o texto original.",
+            falha.message, falha.details,
         )
-        # Armazena no cache (bounded / LRU)
-        if trad:
-            _TRANSLATION_CACHE[cache_key] = trad
-            _TRANSLATION_CACHE.move_to_end(cache_key)
-            if len(_TRANSLATION_CACHE) > _TRANSLATION_CACHE_MAX:
-                _TRANSLATION_CACHE.popitem(last=False)
-        return trad
-    except Exception as e:
         return text
+
+    # Só o que passou na validação é memorizado. Cachear inválido faria o erro repetir-se
+    # para todo texto igual, mesmo depois de o serviço voltar ao normal.
+    _TRANSLATION_CACHE[cache_key] = trad
+    _TRANSLATION_CACHE.move_to_end(cache_key)
+    if len(_TRANSLATION_CACHE) > _TRANSLATION_CACHE_MAX:
+        _TRANSLATION_CACHE.popitem(last=False)
+    return trad
