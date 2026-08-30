@@ -20,8 +20,8 @@ from core.sources import load_sources, source_headers  # noqa: F401 (load_source
 from utils.storage import p, load_json_safe, save_json_safe
 from utils.html import clean_html
 from utils.cache import load_http_state, save_http_state, get_cache_headers, update_cache_state, cleanup_state
-from utils.translator import t, translate_to_target
-from core.stats import stats
+from utils.translator import t, translate_to_target, degradacoes_totais
+from core.stats import stats, avaliar_varredura
 from core.filters import match_intel
 from bot.views.player import WatchView
 
@@ -503,6 +503,28 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
         urls = load_sources()
         if not urls:
             log.warning("⚠️ [CONFIG] Nenhuma fonte encontrada em sources.json")
+            # Catálogo vazio é a ANOMALIA que a telemetria de ausência existe para
+            # apanhar — não pode sair em silêncio (§3.6). Registra, audita e persiste.
+            veredito = avaliar_varredura(
+                fontes_totais=0, feeds_falhos=0, feeds_vazios=0, itens_sem_data=0,
+                enviadas=0, semeados=0, cache_hits=0, traducoes_rejeitadas=0,
+                ciclos_sem_envio=0,
+            )
+            stats.ultimo_veredito = veredito
+            log.error("🔴 [VEREDITO] %s — %s", veredito["veredito"],
+                      " · ".join(veredito["motivos"]))
+            audit_logger.log(
+                AuditEventType.SCAN_COMPLETED,
+                severity=AuditSeverity.ERROR,
+                details={"trigger": trigger, "total_feeds": 0,
+                         "veredito": veredito["veredito"],
+                         "veredito_motivos": veredito["motivos"]},
+            )
+            estado = load_http_state()
+            estado.setdefault("_meta", {})
+            estado["_meta"]["ultimo_veredito"] = veredito
+            estado["_meta"]["last_scan"] = datetime.now().isoformat()
+            save_http_state(estado)
             return
 
         history_list, history_set = _load_history()
@@ -540,6 +562,15 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
         feeds_falhos: List[str] = []
         feeds_vazios = 0
         itens_sem_data = 0
+
+        # Telemetria de ausência (§3.6): snapshot do contador CUMULATIVO de traduções
+        # degradadas, para medir só as DESTA varredura pelo delta; e o histórico de
+        # ciclos seguidos sem publicar, que distingue "dia sem notícia" de "bot mudo".
+        _degradacoes_inicio = degradacoes_totais()
+        try:
+            ciclos_sem_envio_anterior = int(meta.get("ciclos_sem_envio", 0) or 0)
+        except (TypeError, ValueError):
+            ciclos_sem_envio_anterior = 0
 
         now_utc = datetime.now(timezone.utc)
         window_start = now_utc - timedelta(days=1)
@@ -809,8 +840,8 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
             
         save_http_state(http_state)
         
-        # Update Stats
-        from core.stats import stats
+        # Update Stats (stats vem do import de módulo no topo; reimportar aqui
+        # tornava `stats` local à função e quebrava usos anteriores no early-return)
         stats.scans_completed += 1
         stats.news_posted += sent_count
         stats.cache_hits_total += cache_hits
@@ -819,10 +850,37 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
         stats.errors_count += len(feeds_falhos)
         stats.last_scan_time = datetime.now()
 
+        # === Telemetria de ausência: veredito da varredura (§3.6) ===
+        # Traduções degradadas SÓ desta varredura (delta do contador cumulativo).
+        traducoes_rejeitadas = max(0, degradacoes_totais() - _degradacoes_inicio)
+        # Semeadura NÃO conta como ciclo sem envio: enviar 0 ao marcar o acervo de
+        # uma fonte nova é esperado, e vira publicação no próximo ciclo (lente boa-fé).
+        if sent_count == 0 and semeados == 0:
+            ciclos_sem_envio = ciclos_sem_envio_anterior + 1
+        else:
+            ciclos_sem_envio = 0
+        veredito = avaliar_varredura(
+            fontes_totais=len(urls),
+            feeds_falhos=len(feeds_falhos),
+            feeds_vazios=feeds_vazios,
+            itens_sem_data=itens_sem_data,
+            enviadas=sent_count,
+            semeados=semeados,
+            cache_hits=cache_hits,
+            traducoes_rejeitadas=traducoes_rejeitadas,
+            ciclos_sem_envio=ciclos_sem_envio,
+        )
+        stats.ultimo_veredito = veredito
+        _sev_veredito = {
+            "OK": AuditSeverity.INFO,
+            "ATENCAO": AuditSeverity.WARNING,
+            "ANOMALIA": AuditSeverity.ERROR,
+        }.get(veredito["veredito"], AuditSeverity.WARNING)
+
         # Audit log
         audit_logger.log(
             AuditEventType.SCAN_COMPLETED,
-            severity=AuditSeverity.INFO,
+            severity=_sev_veredito,
             details={
                 "trigger": trigger,
                 "sent_count": sent_count,
@@ -831,6 +889,8 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                 "feeds_falhos": len(feeds_falhos),
                 "feeds_vazios": feeds_vazios,
                 "itens_sem_data": itens_sem_data,
+                "veredito": veredito["veredito"],
+                "veredito_motivos": veredito["motivos"],
             }
         )
 
@@ -843,6 +903,15 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
             f"Vazias: {feeds_vazios} | Itens sem data: {itens_sem_data} | "
             f"Trigger: {trigger})"
         )
+        # O veredito é a manchete: OK em INFO, ATENÇÃO/ANOMALIA em WARNING, com o
+        # motivo ao lado — para "está tudo bem" e "metade das fontes morreu" nunca
+        # terem a mesma cara no log.
+        _emoji_v = {"OK": "🟢", "ATENCAO": "🟡", "ANOMALIA": "🔴"}.get(veredito["veredito"], "⚪")
+        _msg_v = f"{_emoji_v} [VEREDITO] {veredito['veredito']} — " + " · ".join(veredito["motivos"])
+        if veredito["veredito"] == "OK":
+            log.info(_msg_v)
+        else:
+            log.warning(_msg_v)
         if fontes_semeadas:
             log.info(
                 "🌱 [SEMEADURA] %d fonte(s) nova(s) tiveram o acervo marcado como visto "
@@ -866,6 +935,8 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
             "last_scan": datetime.now().isoformat(),
             "last_run_trigger": trigger,
             "known_sources": sorted(fontes_conhecidas),
+            "ciclos_sem_envio": ciclos_sem_envio,
+            "ultimo_veredito": veredito,
         }
         save_http_state(http_state)
 
