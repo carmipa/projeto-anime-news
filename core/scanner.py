@@ -919,7 +919,11 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                                 footer_text = t.get('embed.source', lang=target_lang, source=source_domain)
                                 embed.set_footer(text=footer_text)
                                 
-                                if best_image_url is _IMG_NAO_RESOLVIDA:
+                                # So a noticia textual usa a imagem: para midia
+                                # (YouTube/Twitch) o embed e descartado e o Discord
+                                # renderiza o player nativo com a thumbnail. Resolver
+                                # imagem para midia seria trabalho jogado fora.
+                                if not is_media and best_image_url is _IMG_NAO_RESOLVIDA:
                                     best_image_url = await _resolve_image_url(
                                         entry, link, summary, session, ssl_ctx
                                     )
