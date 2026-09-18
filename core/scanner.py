@@ -22,6 +22,7 @@ from settings import (
     CLOUDFLARE_PROXY_URL, CLOUDFLARE_PROXY_SECRET,
 )
 from core.sources import load_sources, source_headers, source_wants_proxy  # noqa: F401 (load_sources reexportado: bot.cogs.info importa daqui)
+from utils.opengraph import fetch_og_image, imagem_publicavel
 from utils.storage import p, load_json_safe, save_json_safe
 from utils.html import clean_html
 from utils.cache import load_http_state, save_http_state, get_cache_headers, update_cache_state, cleanup_state
@@ -299,15 +300,96 @@ def _get_youtube_thumbnail(url: str) -> str:
     return ""
 
 
-def _extract_best_image_url(entry: Any, link: str, summary: str) -> str:
+# Tokens que denunciam imagem de enfeite, nao a imagem da noticia. Casados como
+# TOKEN delimitado, nunca como substring: "comiconline.jpg" contem "icon" e e
+# imagem legitima. Foi por casar substring que a classe 3.5 assinou canal errado.
+# Sentinela: distingue "imagem ainda nao resolvida" de "resolvida como ausente".
+# Sem ela, uma noticia sem imagem seria re-resolvida a cada guild -- e o fallback
+# de OpenGraph faz um GET, entao seriam N requisicoes para a mesma noticia.
+_IMG_NAO_RESOLVIDA = object()
+
+_IMG_TOKENS_DESCARTAVEIS = frozenset({
+    "pixel", "spacer", "blank", "tracking", "transparent", "1x1",
+    "gravatar", "avatar", "emoji", "emojis", "icon", "icons",
+    "badge", "button", "share", "feedburner", "doubleclick",
+})
+
+# Atributos onde a imagem pode estar. src primeiro; o resto e lazy-load, que e
+# como varias publicacoes entregam a imagem de verdade (o src nesses casos e o
+# placeholder). Medido no feed da Siliconera em 2026-09-18.
+_IMG_ATTR_ORDEM = ("src", "data-src", "data-lazy-src", "data-original", "data-srcset", "srcset")
+
+
+def _img_candidata(tag: str) -> str:
     """
-    Tenta extrair a melhor imagem possível do item do feed.
-    Ordem:
-    1) media_thumbnail
-    2) media_content (type=image)
-    3) links/enclosures (rel=enclosure ou type=image)
-    4) primeira <img src=...> no summary/content
-    5) fallback YouTube thumbnail
+    Devolve a URL utilizavel de UMA tag <img>, ou "" se ela nao serve.
+
+    PROPOSITO DE NEGOCIO:
+        Separar a imagem da noticia do enfeite que vem no mesmo HTML do feed
+        (pixel de rastreio, icone de compartilhar, avatar do autor). A primeira
+        <img> do resumo nem sempre e a foto do artigo.
+
+    INVARIANTES DO DOMINIO:
+        - Token descartavel casa como TOKEN (delimitado por / - _ . ou fim),
+          nunca como substring, para nao rejeitar URL legitima que o contenha.
+        - width ou height declarados <= 2 sao pixel de rastreio, sempre.
+        - data: URI nunca serve: o Discord precisa de URL buscavel.
+
+    COMPORTAMENTO EM CASO DE FALHA:
+        Devolve "" para qualquer tag que nao sirva. Nunca levanta.
+    """
+    # Percorre a ordem inteira e fica no primeiro atributo UTILIZAVEL, nao no
+    # primeiro presente. No lazy-load o src e um placeholder data: e a imagem
+    # de verdade esta em data-src -- parar no src cegaria justamente o caso
+    # que este modulo existe para resolver.
+    bruto = ""
+    for attr in _IMG_ATTR_ORDEM:
+        m = re.search(rf'\b{attr}\s*=\s*["\']([^"\']+)["\']', tag, re.IGNORECASE)
+        if not m:
+            continue
+        candidato = m.group(1).strip()
+        if not candidato:
+            continue
+        # srcset e "url tamanho, url tamanho": o primeiro candidato basta.
+        if "," in candidato and (" " in candidato.split(",")[0].strip()):
+            candidato = candidato.split(",")[0].strip().split()[0]
+        if candidato.lower().startswith("data:"):
+            continue
+        bruto = candidato
+        break
+    if not bruto:
+        return ""
+
+    for dim in ("width", "height"):
+        m = re.search(rf'\b{dim}\s*=\s*["\']?(\d+)', tag, re.IGNORECASE)
+        if m and int(m.group(1)) <= 2:
+            return ""
+
+    tokens = {t for t in re.split(r"[/\-_.?=&]+", bruto.lower()) if t}
+    if tokens & _IMG_TOKENS_DESCARTAVEIS:
+        return ""
+
+    return bruto
+
+
+def _extract_feed_image_url(entry: Any, link: str, summary: str) -> str:
+    """
+    Extrai a imagem que a propria FONTE publicou no feed.
+
+    PROPOSITO DE NEGOCIO:
+        A imagem declarada pela publicacao no feed e a mais confiavel que
+        existe para a noticia, e nao custa requisicao nenhuma.
+
+    INVARIANTES DO DOMINIO:
+        - Ordem fixa de preferencia: media_thumbnail, media_content (imagem),
+          enclosure, primeira <img> SERVIVEL do summary/content, thumb do
+          YouTube. A primeira que existir ganha.
+        - Nao faz rede. Quem precisa de rede e o fallback de OpenGraph.
+        - URL relativa no HTML e resolvida contra o link do artigo.
+
+    COMPORTAMENTO EM CASO DE FALHA:
+        Devolve "" quando o feed nao traz imagem alguma. Nunca levanta: cada
+        formato inesperado de campo e tolerado e o proximo candidato e tentado.
     """
     try:
         thumbs = getattr(entry, "media_thumbnail", None)
@@ -315,8 +397,8 @@ def _extract_best_image_url(entry: Any, link: str, summary: str) -> str:
             url = thumbs[0].get("url", "")
             if url.startswith(("http://", "https://")):
                 return url
-    except Exception:
-        pass
+    except Exception as e:
+        log.debug(f"[IMG] media_thumbnail em formato inesperado: {type(e).__name__}: {e}")
 
     try:
         media = getattr(entry, "media_content", None)
@@ -326,8 +408,8 @@ def _extract_best_image_url(entry: Any, link: str, summary: str) -> str:
                 ctype = (item.get("type", "") or "").lower()
                 if url.startswith(("http://", "https://")) and ("image" in ctype or not ctype):
                     return url
-    except Exception:
-        pass
+    except Exception as e:
+        log.debug(f"[IMG] media_content em formato inesperado: {type(e).__name__}: {e}")
 
     try:
         links = getattr(entry, "links", None) or []
@@ -338,21 +420,23 @@ def _extract_best_image_url(entry: Any, link: str, summary: str) -> str:
                 ctype = (item.get("type", "") or "").lower()
                 if href.startswith(("http://", "https://")) and (rel == "enclosure" or "image" in ctype):
                     return href
-    except Exception:
-        pass
+    except Exception as e:
+        log.debug(f"[IMG] links/enclosure em formato inesperado: {type(e).__name__}: {e}")
 
     html_blob = summary or ""
     try:
         content_list = getattr(entry, "content", None)
         if content_list and isinstance(content_list, list):
             html_blob += " " + " ".join((c.get("value", "") for c in content_list if isinstance(c, dict)))
-    except Exception:
-        pass
+    except Exception as e:
+        log.debug(f"[IMG] content em formato inesperado: {type(e).__name__}: {e}")
 
     if html_blob:
-        m = re.search(r"<img[^>]+src=[\"']([^\"']+)[\"']", html_blob, re.IGNORECASE)
-        if m:
-            src = m.group(1).strip()
+        # TODAS as <img>, nao so a primeira: a primeira costuma ser enfeite.
+        for tag in re.findall(r"<img[^>]*>", html_blob, re.IGNORECASE):
+            src = _img_candidata(tag)
+            if not src:
+                continue
             if src.startswith(("http://", "https://")):
                 return src
             if src.startswith("//"):
@@ -364,6 +448,57 @@ def _extract_best_image_url(entry: Any, link: str, summary: str) -> str:
         return _get_youtube_thumbnail(link)
 
     return ""
+
+
+async def _resolve_image_url(
+    entry: Any,
+    link: str,
+    summary: str,
+    session,
+    ssl_ctx,
+) -> str:
+    """
+    Resolve a imagem da noticia: feed primeiro, pagina do artigo depois.
+
+    PROPOSITO DE NEGOCIO:
+        Varias fontes deste catalogo nao publicam imagem no feed e publicam
+        og:image por artigo. Medido em 2026-09-18: animeanime.jp e
+        animecorner.me nao trazem media:thumbnail, media:content, enclosure
+        nem <img> no summary, e as duas tem og:image especifico. Sem o segundo
+        passo, toda noticia dessas fontes sai sem imagem.
+
+    INVARIANTES DO DOMINIO:
+        - O FEED TEM PRECEDENCIA. A imagem que a publicacao declarou no feed
+          e a fonte de verdade; o OpenGraph so entra quando o feed nao trouxe
+          nada. Inverter isso trocaria dado declarado por dado raspado.
+        - Para YouTube nao ha busca de pagina: a thumb ja sai do id do video.
+        - Chamada UMA vez por noticia, nunca por guild: o custo e um GET por
+          noticia, e multiplicar por servidor sobrecarregaria o IP de saida.
+
+    COMPORTAMENTO EM CASO DE FALHA:
+        Devolve "" e a noticia sai sem imagem. Nunca levanta e nunca bloqueia
+        a publicacao (INV-IMG-1).
+    """
+    do_feed = _extract_feed_image_url(entry, link, summary)
+    if do_feed:
+        return do_feed
+
+    if "youtube.com" in link or "youtu.be" in link:
+        return ""
+
+    if not link or session is None:
+        return ""
+
+    try:
+        og = await fetch_og_image(link, session, ssl_ctx)
+    except Exception as e:
+        log.debug(f"[IMG] Fallback OpenGraph falhou para {link[:80]}: {type(e).__name__}: {e}")
+        return ""
+
+    if og:
+        log.debug(f"[IMG] Imagem recuperada via OpenGraph: {link[:80]}")
+    return og or ""
+
 
 def _load_history() -> Tuple[List[str], Set[str]]:
     hist_list = load_json_safe(p("history.json"), [])
@@ -712,7 +847,10 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                         # 4. Check Filters per Guild
                         # We need to broadcast this news to ALL matching guilds
                         posted_channels = []
-                        
+                        # Resolvida sob demanda na primeira guild que for publicar:
+                        # noticia filtrada em todas as guilds nao gasta um GET.
+                        best_image_url = _IMG_NAO_RESOLVIDA
+
                         for guild_id, guild_cfg in config.items():
                             if not match_intel(guild_id, title, summary, config, source=link_url):
                                 continue
@@ -781,16 +919,28 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                                 footer_text = t.get('embed.source', lang=target_lang, source=source_domain)
                                 embed.set_footer(text=footer_text)
                                 
-                                best_image_url = _extract_best_image_url(entry, link, summary)
-                                if best_image_url:
-                                    try:
-                                        if not is_media:
-                                            # Para notícia textual, imagem grande melhora visualização do card
-                                            embed.set_image(url=best_image_url)
-                                        else:
-                                            embed.set_thumbnail(url=best_image_url)
-                                    except Exception as e:
-                                        log.debug(f"⚠️ [EMBED] Falha ao aplicar imagem do item: {e}")
+                                if best_image_url is _IMG_NAO_RESOLVIDA:
+                                    best_image_url = await _resolve_image_url(
+                                        entry, link, summary, session, ssl_ctx
+                                    )
+
+                                # Guarda obrigatoria: URL de imagem invalida faz o
+                                # Discord recusar o EMBED INTEIRO (50035) -- a noticia
+                                # falha em todas as guilds, nao entra no dedup, e o
+                                # ciclo seguinte tenta de novo, para sempre. Noticia
+                                # sem imagem e lida; noticia recusada nao existe.
+                                imagem_ok = imagem_publicavel(best_image_url)
+                                if best_image_url and not imagem_ok:
+                                    log.warning(
+                                        f"⚠️ [EMBED] Imagem descartada por URL inválida, "
+                                        f"notícia segue sem ela: {str(best_image_url)[:120]}"
+                                    )
+                                if imagem_ok:
+                                    if not is_media:
+                                        # Para notícia textual, imagem grande melhora visualização do card
+                                        embed.set_image(url=imagem_ok)
+                                    else:
+                                        embed.set_thumbnail(url=imagem_ok)
 
                                 # Botões: apenas http(s). mailto: quebra a API (50035) — nunca adicionar.
                                 view = _build_news_share_view(link, t_translated)
