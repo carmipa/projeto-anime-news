@@ -1,0 +1,28 @@
+# Normalizacao de fim de linha.
+#
+# PORQUE ESTE FICHEIRO EXISTE:
+#   Em 2026-09-18 o working tree estava em CRLF nos 85 de 85 ficheiros
+#   rastreados enquanto o HEAD estava em LF, com core.autocrlf=false e sem
+#   .gitattributes. Resultado: `git status` acusava 84 ficheiros modificados
+#   com 10.940 insercoes e 10.940 delecoes -- numeros identicos, ou seja ZERO
+#   mudanca de conteudo. Origem provavel: a migracao do disco G: para o F:
+#   (2026-09-14). Nenhum impacto em producao (nao ha .sh rastreado e o
+#   Dockerfile usa CMD em exec form), mas qualquer correcao real commitada
+#   nesse estado sai afogada no ruido e fica irrevisavel.
+#
+# O QUE ISTO GARANTE:
+#   O repositorio guarda LF e o checkout entrega LF em qualquer plataforma.
+#   `eol=lf` e explicito de proposito: sem ele o resultado depende do
+#   core.autocrlf de cada maquina, e foi justamente essa dependencia de
+#   configuracao local que produziu a divergencia.
+* text=auto eol=lf
+
+# Binarios: nunca normalizar (o `text=auto` ja detecta, isto e a cinta).
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.docx binary
+*.zip binary
