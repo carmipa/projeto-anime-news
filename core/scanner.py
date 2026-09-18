@@ -10,7 +10,7 @@ import feedparser
 import aiohttp
 import certifi
 from datetime import datetime, timedelta, timezone
-from typing import List, Set, Tuple, Dict, Any
+from typing import List, Set, Tuple, Dict, Any, Optional
 from urllib.parse import urlparse, urljoin
 
 import discord
@@ -500,6 +500,34 @@ async def _resolve_image_url(
     return og or ""
 
 
+def _imagem_final_do_embed(is_media: bool, best_image_url: Any) -> Tuple[Optional[str], bool]:
+    """
+    Decide a imagem que vai para o embed da noticia e se ha o que avisar.
+
+    PROPOSITO DE NEGOCIO:
+        Centralizar, num ponto testavel, qual imagem entra no card e quando um
+        aviso de imagem reprovada e legitimo -- separando o caso real (URL ruim
+        descartada) do ruido (midia, ou imagem ainda nao resolvida).
+
+    INVARIANTES DO DOMINIO:
+        - Midia (YouTube/Twitch) NUNCA usa imagem: embed descartado, player
+          nativo. Retorna (None, False), sem aviso.
+        - O sentinela _IMG_NAO_RESOLVIDA jamais e tratado como URL. (None, False).
+        - Aviso so quando havia URL REAL reprovada -- unico caso em que perder a
+          imagem merece log. Foi o aviso falso sobre o sentinela, medido em
+          producao em 2026-09-18, que motivou esta funcao.
+
+    COMPORTAMENTO EM CASO DE FALHA:
+        Nunca levanta. (None, False) para qualquer coisa que nao seja URL usavel.
+    """
+    if is_media:
+        return None, False
+    if best_image_url is _IMG_NAO_RESOLVIDA or not best_image_url:
+        return None, False
+    ok = imagem_publicavel(best_image_url)
+    return ok, (ok is None)
+
+
 def _load_history() -> Tuple[List[str], Set[str]]:
     hist_list = load_json_safe(p("history.json"), [])
     # Garante que é lista
@@ -919,32 +947,34 @@ async def run_scan_once(bot: discord.Client, trigger: str = "manual"):
                                 footer_text = t.get('embed.source', lang=target_lang, source=source_domain)
                                 embed.set_footer(text=footer_text)
                                 
-                                # So a noticia textual usa a imagem: para midia
-                                # (YouTube/Twitch) o embed e descartado e o Discord
-                                # renderiza o player nativo com a thumbnail. Resolver
-                                # imagem para midia seria trabalho jogado fora.
+                                # So a noticia textual usa imagem: midia (YouTube/
+                                # Twitch) tem o embed descartado e sai pelo player
+                                # nativo. Resolver imagem para midia e trabalho jogado
+                                # fora -- e deixar o sentinela cair na guarda logava
+                                # "URL invalida" sobre o proprio objeto sentinela,
+                                # aviso falso em toda noticia de video (medido em
+                                # producao 2026-09-18).
                                 if not is_media and best_image_url is _IMG_NAO_RESOLVIDA:
                                     best_image_url = await _resolve_image_url(
                                         entry, link, summary, session, ssl_ctx
                                     )
 
-                                # Guarda obrigatoria: URL de imagem invalida faz o
-                                # Discord recusar o EMBED INTEIRO (50035) -- a noticia
-                                # falha em todas as guilds, nao entra no dedup, e o
-                                # ciclo seguinte tenta de novo, para sempre. Noticia
-                                # sem imagem e lida; noticia recusada nao existe.
-                                imagem_ok = imagem_publicavel(best_image_url)
-                                if best_image_url and not imagem_ok:
+                                # Guarda: URL de imagem invalida faz o Discord recusar
+                                # o EMBED INTEIRO (50035) -- a noticia falharia em todas
+                                # as guilds, nao entraria no dedup e o ciclo repetiria
+                                # para sempre. Noticia sem imagem e lida; recusada nao
+                                # existe. O aviso so sai quando havia URL real reprovada.
+                                imagem_ok, avisar_imagem = _imagem_final_do_embed(
+                                    is_media, best_image_url
+                                )
+                                if avisar_imagem:
                                     log.warning(
                                         f"⚠️ [EMBED] Imagem descartada por URL inválida, "
                                         f"notícia segue sem ela: {str(best_image_url)[:120]}"
                                     )
                                 if imagem_ok:
-                                    if not is_media:
-                                        # Para notícia textual, imagem grande melhora visualização do card
-                                        embed.set_image(url=imagem_ok)
-                                    else:
-                                        embed.set_thumbnail(url=imagem_ok)
+                                    # Notícia textual: imagem grande melhora o card.
+                                    embed.set_image(url=imagem_ok)
 
                                 # Botões: apenas http(s). mailto: quebra a API (50035) — nunca adicionar.
                                 view = _build_news_share_view(link, t_translated)

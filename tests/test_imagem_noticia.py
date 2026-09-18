@@ -141,6 +141,53 @@ class TestFalhaNuncaImpedePublicacao(unittest.TestCase):
         self.assertEqual(url, "https://cdn.exemplo.com/capa.jpg")
 
 
+from core.scanner import _imagem_final_do_embed, _IMG_NAO_RESOLVIDA  # noqa: E402
+
+
+class TestImagemFinalDoEmbed(unittest.TestCase):
+    """
+    O bug que producao pegou (2026-09-18) e os testes unitarios nao: para midia,
+    best_image_url ficava como o sentinela _IMG_NAO_RESOLVIDA e caia na guarda,
+    que logava "URL invalida" sobre o objeto sentinela -- aviso falso em toda
+    noticia de video. Guarda extraida para _imagem_final_do_embed, testavel.
+    """
+
+    def test_doente_midia_com_sentinela_nao_avisa(self):
+        # Este e o caso exato de producao: midia, imagem nunca resolvida.
+        img, avisar = _imagem_final_do_embed(True, _IMG_NAO_RESOLVIDA)
+        self.assertIsNone(img)
+        self.assertFalse(avisar, "midia NAO pode gerar aviso de imagem invalida")
+
+    def test_legitimo_mesmo_sinal_url_real_reprovada_avisa(self):
+        # MESMO sinal (imagem que nao vai para o embed), mas aqui e uma URL REAL
+        # reprovada numa noticia textual -- este e o unico caso que merece aviso.
+        img, avisar = _imagem_final_do_embed(False, "/wp-content/relativa.jpg")
+        self.assertIsNone(img)
+        self.assertTrue(avisar, "URL real reprovada em noticia textual deve avisar")
+
+    def test_textual_sentinela_nao_avisa(self):
+        # Nao resolvido ainda / sem imagem: ausencia nao e erro, nao avisa.
+        img, avisar = _imagem_final_do_embed(False, _IMG_NAO_RESOLVIDA)
+        self.assertIsNone(img)
+        self.assertFalse(avisar)
+
+    def test_textual_vazio_nao_avisa(self):
+        img, avisar = _imagem_final_do_embed(False, "")
+        self.assertIsNone(img)
+        self.assertFalse(avisar)
+
+    def test_textual_url_valida_entra_sem_aviso(self):
+        img, avisar = _imagem_final_do_embed(False, "https://cdn.exemplo.com/capa.jpg")
+        self.assertEqual(img, "https://cdn.exemplo.com/capa.jpg")
+        self.assertFalse(avisar)
+
+    def test_midia_com_url_valida_ainda_assim_nao_usa(self):
+        # Mesmo com URL boa, midia nao usa imagem (player nativo).
+        img, avisar = _imagem_final_do_embed(True, "https://cdn.exemplo.com/capa.jpg")
+        self.assertIsNone(img)
+        self.assertFalse(avisar)
+
+
 class TestImagemPublicavel(unittest.TestCase):
     """
     INV: URL de imagem invalida faz o Discord recusar o EMBED INTEIRO (50035),
